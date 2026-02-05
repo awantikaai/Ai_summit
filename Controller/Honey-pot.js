@@ -415,53 +415,198 @@ const deterministicReply = (msg, history) => {
     return "Pehle SBI bola, ab XYZ Bank? Yeh kaunsa bank hai?";
   }
   
-  const responses = [
-    {
-      keywords: ["bank", "account", "suspended", "blocked", "compromised", "freeze"],
-      replies: [
-        "Kaunsa bank? Branch kaunsi hai?",
-        "Mera account block kaise ho gaya?",
-        "Bank ka number do, main call karta hoon.",
-        "Account number already diya, kyun puchh rahe ho?"
-      ]
-    },
-    {
-      keywords: ["otp", "one time password", "verification code", "6 digit"],
-      replies: [
-        "OTP kyun chahiye? Bank mein jaake pata kar lo.",
-        "OTP nahi bhej sakta, risky lag raha hai.",
-        "Konsa OTP? Message nahi aaya koi.",
-        "OTP sirf bank ke official number se aata hai."
-      ]
-    },
-    {
-      keywords: ["upi", "payment", "transfer", "vpa", "upi pin", "mpin"],
-      replies: [
-        "UPI kaise karte hain? Main to cash hi deta hoon.",
-        "UPI ID kya hota hai? Samjhao.",
-        "UPI PIN nahi de sakta, beta manage karta hai.",
-        "Mobile payment risky hai, cash better."
-      ]
-    },
-    {
-      keywords: ["urgent", "immediate", "emergency", "now", "quick", "turant", "abhi"],
-      replies: [
-        "Itni jaldi kya hai? Kal office jaunga.",
-        "Thoda time do, sochta hoon.",
-        "Emergency mein police ko call karna chahiye.",
-        "Abhi busy hoon, 10 minute baad."
-      ]
-    },
-    {
-      keywords: ["fraud", "team", "officer", "security", "department"],
-      replies: [
-        "Kaun ho aap? Pehchan nahi hai.",
-        "Aapka ID card bhejo pehle.",
-        "Official proof dikhao tab baat karenge.",
-        "Maine pehle kabhi aapka call nahi liya."
-      ]
-    }
-  ];
+const responses = [
+  {
+    keywords: ["bank", "account", "suspended", "blocked", "compromised", "freeze", "locked", "kyc"],
+    replies: [
+      "Kaunsa bank? Branch kaunsi hai?",
+      "Mera account block kaise ho gaya? Abhi toh paisa nikala tha.",
+      "Bank ka number do, main call karta hoon verify karne.",
+      "Account number already diya, phir kyun puchh rahe ho?",
+      "SBI hai ya HDFC? Maine dono mein account hai.",
+      "Pension account hai mera, usme kya problem hai?",
+      "Kal hi branch gaya tha, kuch nahi bola unhone.",
+      "Mera beta bank mein kaam karta hai, usse puchhunga.",
+      "Passbook update karwana tha, uski wajah se kya?",
+      "Bank manager ka naam batao, main jaanta hoon sabko.",
+      "Mobile banking nahi use karta main, to kaise hack hua?",
+      "Meri wife ka account bhi safe hai na?",
+      "Fixed deposit ka kya hua? Woh bhi block ho gaya?",
+      "Credit card bhi hai usi bank se, uspe bhi problem hai kya?"
+    ]
+  },
+  {
+    keywords: ["otp", "one time password", "verification code", "6 digit", "sms code", "verification"],
+    replies: [
+      "OTP kyun chahiye? Bank toh branch mein verify karta hai.",
+      "OTP nahi bhej sakta, beta bola hai kisi ko mat dena.",
+      "Konsa OTP? Message aaya hi nahi aaj.",
+      "OTP sirf bank ke official number se aata hai, aapka number toh personal hai.",
+      "Phone purana hai, SMS late se aate hain.",
+      "Do baar OTP aaya tha, konsa bheju?",
+      "Eyesight kamjor hai, chhote number padh nahi sakta.",
+      "Beta aata hai shaam ko, usse puchh kar bhejta hoon.",
+      "OTP se paise transfer hote hain kya? Main toh cheque deta hoon.",
+      "Aaj kal bahut scams hain OTP ke naam pe, dar lag raha hai.",
+      "Meri beti doctor hai, usne mana kiya hai OTP dena.",
+      "Bank wale bole the OTP kisi ko mat batana, aap kaun ho?",
+      "Phone charging pe hai, 5 minute baad check karta hoon.",
+      "Glasses ghar pe reh gaye, number clear nahi dikh raha."
+    ]
+  },
+  {
+    keywords: ["upi", "payment", "transfer", "vpa", "upi pin", "mpin", "google pay", "phonepe", "paytm"],
+    replies: [
+      "UPI kaise karte hain? Main toh cash hi deta hoon dukaan pe.",
+      "UPI ID kya hota hai? Samjhao thoda.",
+      "UPI PIN nahi de sakta, beta manage karta hai sab.",
+      "Mobile payment risky hai, cash better hai mere liye.",
+      "Beta ne install kiya hai UPI par kabhi use nahi kiya.",
+      "Internet slow hai ghar pe, UPI nahi chalta.",
+      "Smartphone naya lena hai, abhi wala 5 saal purana hai.",
+      "Meri beti ne kaha tha UPI mat karna, fraud hota hai.",
+      "Bank se direct transfer karte hain, UPI nahi aata.",
+      "Password bhool gaya hoon UPI ka, beta jaanta hai.",
+      "Fingerprint se kholna hai kya? Meri ungliyan kamjor hain.",
+      "Aaj kal sab UPI hi karte hain, main purane zamane ka aadmi hoon.",
+      "Ration dukaan wala bhi UPI maangta hai, main cash deta hoon.",
+      "Beta Bangalore mein hai, woh Sunday ko aayega tab puchhunga."
+    ]
+  },
+  {
+    keywords: ["urgent", "immediate", "emergency", "now", "quick", "turant", "abhi", "fast", "asap", "jaldi"],
+    replies: [
+      "Itni jaldi kya hai? Kal office jaunga.",
+      "Thoda time do, sochta hoon.",
+      "Emergency mein police ko call karna chahiye.",
+      "Abhi busy hoon, 10 minute baad.",
+      "Subah 10 baje tak baat karte hain, abhi sone ja raha hoon.",
+      "Blood pressure ki medicine lena hai pehle.",
+      "Grandson aa gaya hai, uske baad baat karte hain.",
+      "TV serial chal raha hai, uske baad.",
+      "Doctor ke paas jaana hai 4 baje, uske baad free hoon.",
+      "Wife ghar pe nahi hai, woh aayegi tab puchhunga.",
+      "Aaj Wednesday hai, main bank jaata hoon Thursday ko.",
+      "Headache ho raha hai, kal subah fresh hoke baat karte hain.",
+      "Phone battery 10% hai, charge karna padega.",
+      "Ration lene jaana hai, wapas aake baat karta hoon."
+    ]
+  },
+  {
+    keywords: ["fraud", "team", "officer", "security", "department", "prevention", "investigation", "official"],
+    replies: [
+      "Kaun ho aap? Pehchan nahi hai.",
+      "Aapka ID card bhejo pehle photo ke saath.",
+      "Official proof dikhao tab baat karenge.",
+      "Maine pehle kabhi aapka call nahi liya.",
+      "Bank ka official email bhejo, main check karta hoon.",
+      "Aapka accent different hai, kaunse state se ho?",
+      "Meri beti SBI mein hai, usse puchh kar batata hoon.",
+      "Cyber crime wale number pe call karna chahiye kya?",
+      "Aapka naam kya hai? Employee ID batao.",
+      "Maine koi complaint nahi ki, toh aap kaise aaye?",
+      "Last month bhi aisa call aaya tha, woh bhi fraud nikla.",
+      "Police station mein complaint karni chahiye kya?",
+      "Beta IT mein hai, usse puchhunga aap genuine ho ya nahi.",
+      "Aapki voice recording kar raha hoon, police ko dunga agar fraud nikle."
+    ]
+  },
+  {
+    keywords: ["money", "paise", "paisa", "amount", "transaction", "transfer", "send", "payment", "rupees", "₹"],
+    replies: [
+      "Kitna paisa chahiye? Maine toh kuch transfer nahi kiya.",
+      "Pension aaya hai bas, usme se kya len den?",
+      "Beta har mahine paise bhejta hai, usme se kya?",
+      "Fixed deposit hai, woh toh 3 saal baad khulega.",
+      "Medical bill bharna hai is month, paise nahi hai extra.",
+      "Credit card bill aaya hai, uspe focus kar raha hoon.",
+      "Grandson ka school fee dena hai, paise tight hain.",
+      "Kya rate hai? Kitna paisa bhejna hai?",
+      "Cash hai ghar pe, bank mein bahut nahi hai.",
+      "Wife paise manage karti hai, usse puchhunga.",
+      "Ration card ka paisa aaya hai, usse kya karna hai?",
+      "Insurance premium bharna hai, uske baad dekhunga.",
+      "Aaj kal sab online hota hai, main cheque deta hoon.",
+      "Bank passbook update karni hai, tab pata chalega kitna paisa hai."
+    ]
+  },
+  {
+    keywords: ["link", "click", "website", "portal", "http", "www", "online", "login", "portal"],
+    replies: [
+      "Link nahi khol sakta, phone slow ho jata hai.",
+      "Beta ne mana kiya hai links click karne se.",
+      "Website kaunsi hai? Pehchan nahi.",
+      "Link pe click karna safe hai kya?",
+      "Internet package khatam ho gaya hai, link nahi khul raha.",
+      "Virus aa jayega kya link se?",
+      "WhatsApp pe aaya tha link, main delete kar diya.",
+      "Eyesight kamjor hai, chhota text padh nahi sakta.",
+      "Beta Sunday ko aayega, usse link check karaunga.",
+      "Bank ka official website kaunsa hai? Google pe search karna padega.",
+      "Password bhool gaya hoon login ka, beta yaad rakhta hai.",
+      "Mouse nahi chal raha, touchscreen se click nahi ho raha.",
+      "Link copy karke bhejo, grandson ko forward kar dunga.",
+      "Aaj kal bahut fake websites hain, dar lag raha hai."
+    ]
+  },
+  {
+    keywords: ["won", "lottery", "prize", "reward", "jackpot", "crorepati", "lucky", "winner", "contest"],
+    replies: [
+      "Lottery? Maine toh kabhi ticket nahi liya.",
+      "Galat number hai, maine nahi khela kabhi.",
+      "Itna paisa achanak kaise? Scam lag raha.",
+      "Konsi lottery? Details bhejo.",
+      "TV pe aata hai yeh sab, main nahi manta.",
+      "Pensioner hoon, lottery khelne ka time nahi hai.",
+      "Beta bola tha lottery mat khelo, time waste hai.",
+      "Tax dena padega prize pe? Kitna percent?",
+      "Agar sach mein prize hai toh bank draft bhejo.",
+      "Maine toh sirf chhota savings certificate liya hai.",
+      "Aaj tak kuch nahi jeeta, ab achanak kaise?",
+      "Form fill karna hai kya? Main nahi kar sakta.",
+      "Notary karna padega kya? Bahut pareshani hai.",
+      "Grandson ke liye gift mang rahe ho kya? Uske birthday pe diya maine."
+    ]
+  },
+  {
+    keywords: ["personal", "details", "information", "aadhar", "pan", "document", "id proof"],
+    replies: [
+      "Personal details nahi de sakta, risky hai.",
+      "Aadhar card photo bhejna hai kya? Woh confidential hai.",
+      "PAN card bank ke paas hai, main nahi rakhta.",
+      "Beta ne kaha hai kisi ko documents mat bhejna.",
+      "Last time documents bheje the, spam calls aane lage.",
+      "Original documents ghar pe nahi hain, locker mein hain.",
+      "Photo kheench ke bhejna hai kya? Camera nahi aata.",
+      "Digital signature kya hota hai? Main toh hath se sign karta hoon.",
+      "Notary karvana padega kya? 500 rupee lagte hain.",
+      "Documents verify karne bank jaana padega.",
+      "Meri age 65 hai, retirement ho gaya.",
+      "Address change hua hai, abhi update nahi kiya.",
+      "Biometric nahi hai mere paas, fingerprint fail ho gaya.",
+      "Passport hai par expire ho gaya hai, renew karna hai."
+    ]
+  },
+  {
+    keywords: ["call", "phone", "number", "contact", "ring", "dial", "mobile"],
+    replies: [
+      "Call kar do? Par aapka number private aa raha hai.",
+      "Landline pe baat karte hain, mobile mein network nahi hai.",
+      "Beta ka number do, usse baat karta hoon.",
+      "Bank ka toll-free number batao, main wahan call karta hoon.",
+      "Hearing aid lagana hai pehle, sunai nahi deta.",
+      "Voice message bhej do, baad mein sunta hoon.",
+      "Roaming charge lagte hain, paise nahi hain.",
+      "Phone mein balance nahi hai, incoming free hai bas.",
+      "WhatsApp call karo, normal call expensive hai.",
+      "Evening 7 baje tak call karna, abhi bahar hoon.",
+      "Wife phone utha legi, main driving sik raha hoon.",
+      "Grandson ne naya number diya hai, woh try karo.",
+      "Phone service center mein hai, repair kar rahe hain.",
+      "Dual SIM phone hai, konsi SIM pe call aaya?"
+    ]
+  }
+];
   
   for (const category of responses) {
     if (category.keywords.some(keyword => lowerMsg.includes(keyword))) {
