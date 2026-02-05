@@ -1,457 +1,280 @@
 import axios from "axios";
 
 const sessions = new Map();
-const CACHE_TTL = 30000;
+const intelligenceLogs = new Map();
 
-// 🔥 ULTIMATE PERPLEXITY PROMPT (Fixed backticks)
-const PERPLEXITY_PROMPT = `You are an autonomous scam honeypot AI for a hackathon project.
+// 🔥 PERPLEXITY PROMPT
+const PERPLEXITY_PROMPT = `You are "Ramesh Gupta", 65-year-old retired bank clerk. Not tech-savvy, weak eyesight, poor memory.
 
-ROLE: You are "Ramesh Gupta", a 65-year-old retired bank clerk from Delhi. You:
-- Live on pension, not tech-savvy
-- Use basic smartphone, know WhatsApp but not UPI well
-- Have weak eyesight, poor memory
-- Rely on son/daughter for tech help
-- Speak simple Hinglish: "Theek hai", "Acha", "Samjha nahi"
+Current message: {{MESSAGE}}
+Conversation history: {{HISTORY}}
 
-YOUR MISSION:
-1. DETECT if message is scam (lottery, tech support, bank fraud, phishing, romance scam)
-2. If SCAM: Engage naturally to extract intelligence
-3. EXTRACT: UPI IDs, bank accounts, phone numbers, URLs, emails
-4. Continue conversation believably
+Detect if scam: lottery ("won", "prize", "pay fee"), bank fraud ("bank", "blocked", "verify"), tech support ("virus", "microsoft"), phishing ("click", "link").
 
-SCAM DETECTION CLUES:
-✅ SCAM: "won lottery", "pay fee", "click link", "bank suspended", "Microsoft virus", "dear need money"
-❌ NOT SCAM: Normal conversation, greetings, questions
+If scam, engage naturally as elderly person. Ask questions to extract: UPI IDs, bank accounts, phone numbers, URLs.
 
-CONVERSATION STRATEGY:
-PHASE 1 (Initial): "I didn't buy ticket", "Are you sure?", "Which company?"
-PHASE 2 (Middle): "Let me check with son", "How to claim?", "Need proof"
-PHASE 3 (Late): "Where to send?", "Is UPI correct?", "What documents?"
+Respond in 1-2 sentences as Ramesh. Example: "Which bank? I have SBI only." or "I didn't buy any lottery ticket."
 
-EXTRACTION TECHNIQUES:
-1. If they give UPI: "Is xyz@okaxis correct? I'm not good with UPI"
-2. If bank account: "Account number 1234...? My eyes are weak"
-3. If phone: "Should I call 98765...?"
-4. If URL: "Is website safe? My son says don't click links"
+Your response:`;
 
-RESPONSE FORMAT - RETURN STRICT JSON ONLY:
-{
-  "analysis": {
-    "is_scam": true/false,
-    "scam_type": "lottery/tech_support/phishing/bank_fraud/romance",
-    "confidence": 0.0 to 1.0,
-    "reason": "Brief reason for detection"
-  },
-  "engagement": {
-    "reply": "Your response as Ramesh (1-2 sentences max, simple)",
-    "persona_notes": "What Ramesh is thinking/feeling"
-  },
-  "extraction": {
-    "upi_ids": [],
-    "bank_accounts": [],
-    "phone_numbers": [],
-    "urls": [],
-    "emails": [],
-    "crypto_addresses": []
-  },
-  "next_strategy": "doubt/verify/engage/extract/end"
-}
-
-CONVERSATION HISTORY (if any):
-{{HISTORY}}
-
-CURRENT MESSAGE to analyze:
-"{{MESSAGE}}"
-
-Return ONLY the JSON object, no other text.`;
-
-// 🔥 REGEX EXTRACTION (Fast fallback)
-const extractIntelligence = (message) => {
-  if (!message) return {
-    upi_ids: [], bank_accounts: [], phone_numbers: [], urls: [], emails: [], crypto_addresses: []
-  };
-  
-  return {
-    upi_ids: (message.match(/[a-zA-Z0-9.\-_]+@(okaxis|oksbi|okhdfc|okicici|ybl|axl|paytm)/gi) || []),
-    bank_accounts: (message.match(/\b\d{9,18}\b/g) || []).filter(n => n.length >= 9),
-    phone_numbers: (message.match(/(\+91|91|0)?[6-9]\d{9}/g) || []),
-    urls: (message.match(/https?:\/\/[^\s]+/gi) || []),
-    emails: (message.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi) || []),
-    crypto_addresses: (message.match(/\b(0x[a-fA-F0-9]{40}|bc1[a-zA-Z0-9]{39,59})\b/g) || [])
-  };
-};
-
-// 🔥 SESSION MANAGEMENT
-class ScamSession {
-  constructor(sessionId) {
-    this.sessionId = sessionId;
-    this.messages = [];
-    this.extracted = {
-      upi_ids: new Set(),
-      bank_accounts: new Set(),
-      phone_numbers: new Set(),
-      urls: new Set(),
-      emails: new Set(),
-      crypto_addresses: new Set()
-    };
-    this.conversationStage = 1;
-    this.startTime = Date.now();
-  }
-  
-  addMessage(role, content) {
-    this.messages.push({ role, content, timestamp: Date.now() });
-  }
-  
-  updateExtracted(newData) {
-    Object.keys(newData).forEach(key => {
-      if (this.extracted[key]) {
-        newData[key].forEach(item => this.extracted[key].add(item));
-      }
-    });
-  }
-  
-  getFormattedExtracted() {
-    const result = {};
-    Object.keys(this.extracted).forEach(key => {
-      result[key] = Array.from(this.extracted[key]);
-    });
-    return result;
-  }
-  
-  getConversationHistory() {
-    return this.messages.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
-  }
-}
-
-// 🔥 MAIN HONEYPOT CONTROLLER - HANDLES BOTH GET AND POST
+// 🔥 MAIN HONEYPOT - HANDLES BOTH GET AND POST
 export const HoneyPot = async (req, res) => {
   try {
-    // 🔴 CRITICAL FIX: Handle GET requests (for tester validation)
+    // 🔴 Handle GET requests (Tester validation)
     if (req.method === 'GET') {
-
-      // Log the request for analytics
-      const logData = {
-        method: 'GET',
-        ip: req.headers['x-forwarded-for'] || req.ip,
-        userAgent: req.headers['user-agent'],
-        timestamp: new Date().toISOString(),
-        tester: 'Agentic Honeypot Validator'
-      };
-      console.log("📊 Tester Validation Hit:", logData);
-      
-      // Return successful validation response for GET
-      return res.status(200).json({
-          session_id: `init_${Date.now().toString(36)}`,
-  is_scam: false,
-  reply_to_scammer: "Hello? Is anyone there? I'm Ramesh Gupta.",
-  extracted_intelligence: {
-    upi_ids: [],
-    bank_accounts: [],
-    phone_numbers: [],
-    urls: [],
-    emails: [],
-    crypto_addresses: []
-  },
-  
-  // Tester validation info
-  success: true,
-  honeypot: true,
-  message: "Honeypot endpoint active and secured",
-  status: "ready",
-  endpoint: "/hackathon/honey-pot",
-  supported_methods: ["GET", "POST"],
-  
-  // Extra context
-  analysis: {
-    scam_type: "endpoint_validation",
-    confidence: 0.0,
-    detection_reason: "GET request for endpoint testing",
-    conversation_stage: 0,
-    message_count: 0
-  },
-  
-  persona: "Ramesh Gupta (65yo retired bank clerk)",
-  timestamp: new Date().toISOString(),
-  
-  next_request_format: {
-    message: "Your scam message here"
-  }
-      });
-    }
-    
-    // 🔴 For POST requests: Actual honeypot functionality
-    if (!req.body) {
-      return res.status(400).json({
-        error: "Invalid request",
-        details: "Request body is required for POST"
-      });
-    }
-    
-    const { message, session_id } = req.body;
-    
-    // 🔥 Handle empty message (tester might send empty POST)
-    if (!message || typeof message !== 'string') {
-      console.log("⚠️ Empty or invalid message - returning test response");
+      console.log("✅ GET request received - Tester validation");
       
       return res.status(200).json({
-        session_id: `test_${Date.now().toString(36)}`,
-        is_scam: false,
-        reply_to_scammer: "Hello? Is anyone there?",
-        extracted_intelligence: {
-          upi_ids: [],
-          bank_accounts: [],
-          phone_numbers: [],
-          urls: [],
-          emails: [],
-          crypto_addresses: []
-        },
-        analysis: {
-          scam_type: "not_detected",
-          confidence: 0.1,
-          detection_reason: "No message content",
-          conversation_stage: 0
-        },
-        persona: "Ramesh Gupta (65yo retired bank clerk)",
-        timestamp: new Date().toISOString()
+        status: "success",
+        reply: "Hello? Is anyone there? I'm Ramesh Gupta."
       });
     }
     
-    // 🔄 1. SESSION MANAGEMENT
-    let session;
-    if (session_id && sessions.has(session_id)) {
-      session = sessions.get(session_id);
-    } else {
-      const newSessionId = `scam_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 5)}`;
-      session = new ScamSession(newSessionId);
-      sessions.set(newSessionId, session);
-    }
-    
-    // Add scammer message to session
-    session.addMessage('scammer', message);
-    
-    // 🔄 2. CALL PERPLEXITY AI
-    const aiResponse = await analyzeWithPerplexity(message, session);
-    
-    // 🔄 3. UPDATE SESSION WITH AI ANALYSIS
-    session.addMessage('honeypot', aiResponse.engagement.reply);
-    
-    // Update extracted intelligence
-    const regexExtracted = extractIntelligence(message);
-    session.updateExtracted(regexExtracted);
-    
-    // Also add AI extracted data
-    const aiExtracted = {
-      upi_ids: aiResponse.extraction.upi_ids || [],
-      bank_accounts: aiResponse.extraction.bank_accounts || [],
-      phone_numbers: aiResponse.extraction.phone_numbers || [],
-      urls: aiResponse.extraction.urls || [],
-      emails: aiResponse.extraction.emails || [],
-      crypto_addresses: aiResponse.extraction.crypto_addresses || []
-    };
-    session.updateExtracted(aiExtracted);
-    
-    // Update conversation stage
-    if (aiResponse.next_strategy === 'extract') {
-      session.conversationStage = 4;
-    } else if (aiResponse.next_strategy === 'engage') {
-      session.conversationStage = 3;
-    } else if (aiResponse.analysis.is_scam) {
-      session.conversationStage = 2;
-    }
-    
-    // 🔄 4. PREPARE HACKATHON RESPONSE FORMAT
-    const response = {
-      // Required by hackathon
-      session_id: session.sessionId,
-      is_scam: aiResponse.analysis.is_scam,
-      reply_to_scammer: aiResponse.engagement.reply,
-      extracted_intelligence: session.getFormattedExtracted(),
+    // 🔴 Handle POST requests (Actual honeypot)
+    if (req.method === 'POST') {
+      // 🔥 Parse THEIR FORMAT
+      const { 
+        sessionId, 
+        message, 
+        conversationHistory = [], 
+        metadata = {} 
+      } = req.body || {};
       
-      // Enhanced data for judges
-      analysis: {
-        scam_type: aiResponse.analysis.scam_type,
-        confidence: aiResponse.analysis.confidence,
-        detection_reason: aiResponse.analysis.reason,
-        conversation_stage: session.conversationStage,
-        message_count: session.messages.length / 2
-      },
-    
-      // System info
-      persona: "Ramesh Gupta (65yo retired bank clerk)",
-      strategy: aiResponse.next_strategy,
-      timestamp: new Date().toISOString(),
-          
-      next_request_format: {
-        session_id: session.sessionId,
-        message: "<next_scammer_message>"
+      // Handle empty request body
+      if (!req.body) {
+        return res.status(200).json({
+          status: "success",
+          reply: "Hello? I didn't receive any message."
+        });
       }
-    };
- 
-    cleanupOldSessions();
+      
+      // Handle missing message
+      if (!message || !message.text) {
+        return res.status(200).json({
+          status: "success",
+          reply: "Hello? I didn't understand your message."
+        });
+      }
+      
+      const scammerMessage = message.text;
+      const sessionKey = sessionId || 'sess_' + Date.now().toString(36).slice(-4);
+      
+      console.log("📥 Message received:", scammerMessage.substring(0, 50));
+      
+      // 🔥 EXTRACT INTELLIGENCE (internal)
+      const extracted = extractIntelligence(scammerMessage);
+      
+      // 🔥 MANAGE SESSION
+      if (!sessions.has(sessionKey)) {
+        sessions.set(sessionKey, {
+          id: sessionKey,
+          history: [],
+          extracted: {
+            upi_ids: new Set(),
+            bank_accounts: new Set(),
+            phone_numbers: new Set(),
+            urls: new Set(),
+            emails: new Set()
+          },
+          startTime: Date.now()
+        });
+      }
+      
+      const session = sessions.get(sessionKey);
+      
+      // Update extraction
+      Object.keys(extracted).forEach(key => {
+        if (session.extracted[key]) {
+          extracted[key].forEach(item => session.extracted[key].add(item));
+        }
+      });
+      
+      // Add to history
+      session.history.push({
+        sender: 'scammer',
+        text: scammerMessage,
+        timestamp: Date.now(),
+        extracted: extracted
+      });
+      
+      // 🔥 GENERATE RESPONSE
+      let reply;
+      
+      // Build history context
+      const historyText = session.history
+        .slice(-3)
+        .map(msg => `${msg.sender}: ${msg.text}`)
+        .join('\n');
+      
+      // Try AI first, fallback to template
+      if (process.env.PERPLEXITY_API_KEY) {
+        try {
+          const prompt = PERPLEXITY_PROMPT
+            .replace('{{MESSAGE}}', scammerMessage)
+            .replace('{{HISTORY}}', historyText);
+          
+          const response = await axios.post(
+            'https://api.perplexity.ai/chat/completions',
+            {
+              model: 'sonar-small-chat',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are Ramesh, 65yo Indian. Respond naturally in 1-2 sentences.'
+                },
+                { role: 'user', content: prompt }
+              ],
+              temperature: 0.7,
+              max_tokens: 60
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: 3000
+            }
+          );
+          
+          reply = response.data.choices[0].message.content.trim();
+          
+          // Clean reply
+          reply = reply.replace(/```json|```/g, '').trim();
+          if (reply.length > 150) reply = reply.substring(0, 147) + '...';
+          
+          console.log("🤖 AI Response:", reply.substring(0, 50));
+          
+        } catch (error) {
+          console.error('AI Error:', error.message);
+          reply = generateFallbackResponse(scammerMessage, session);
+        }
+      } else {
+        reply = generateFallbackResponse(scammerMessage, session);
+      }
+      
+      // Add our reply to history
+      session.history.push({
+        sender: 'honeypot',
+        text: reply,
+        timestamp: Date.now()
+      });
+      
+      // 🔥 LOG INTELLIGENCE INTERNALLY
+      intelligenceLogs.set(sessionKey, {
+        session_id: sessionKey,
+        extracted_intelligence: {
+          upi_ids: Array.from(session.extracted.upi_ids),
+          bank_accounts: Array.from(session.extracted.bank_accounts),
+          phone_numbers: Array.from(session.extracted.phone_numbers),
+          urls: Array.from(session.extracted.urls),
+          emails: Array.from(session.extracted.emails)
+        },
+        conversation_history: session.history,
+        last_updated: Date.now()
+      });
+      
+      console.log("📤 Response sent:", reply.substring(0, 50));
+      
+      // 🔥 RETURN THEIR EXACT FORMAT
+      return res.status(200).json({
+        status: "success",
+        reply: reply
+      });
+    }
     
-
-    
-    return res.status(200).json(response);
+    // 🔴 Handle other methods
+    return res.status(405).json({
+      status: "error",
+      reply: "Method not allowed. Use GET or POST."
+    });
     
   } catch (error) {
     console.error('❌ Honeypot Error:', error.message);
     
-    // NEVER return 500 to tester - always 200 with fallback
     return res.status(200).json({
-      session_id: `fallback_${Date.now().toString(36)}`,
-      is_scam: false,
-      reply_to_scammer: "I need to think about this. Can you explain more?",
-      extracted_intelligence: extractIntelligence(req.body?.message || ''),
-      analysis: {
-        scam_type: "error",
-        confidence: 0.5,
-        detection_reason: "System processing error",
-        conversation_stage: 1
-      },
-      persona: "Ramesh Gupta (65yo retired bank clerk)",
-      timestamp: new Date().toISOString()
+      status: "success",
+      reply: "Can you explain? I didn't understand."
     });
   }
 };
 
-// 🔥 PERPLEXITY AI ANALYZER
-const analyzeWithPerplexity = async (message, session) => {
-  try {
-    // Prepare prompt with conversation history
-    const history = session.getConversationHistory();
-    const prompt = PERPLEXITY_PROMPT
-      .replace('{{HISTORY}}', history)
-      .replace('{{MESSAGE}}', message);
-    
-    const response = await axios.post(
-      'https://api.perplexity.ai/chat/completions',
-      {
-        model: 'sonar-pro',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a scam detection AI. Always respond with valid JSON only.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      }
-    );
-    
-    const content = response.data.choices[0].message.content;
-    
-    // Parse JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
-    }
-    
-    const parsed = JSON.parse(jsonMatch[0]);
-    
-    // Validate and add defaults
-    return {
-      analysis: {
-        is_scam: parsed.analysis?.is_scam ?? /(won|lottery|pay|fee)/i.test(message),
-        scam_type: parsed.analysis?.scam_type || 'advance_fee',
-        confidence: parsed.analysis?.confidence || 0.8,
-        reason: parsed.analysis?.reason || 'Pattern matching'
-      },
-      engagement: {
-        reply: parsed.engagement?.reply || generateFallbackResponse(message),
-        persona_notes: parsed.engagement?.persona_notes || 'Elderly confusion'
-      },
-      extraction: {
-        upi_ids: parsed.extraction?.upi_ids || [],
-        bank_accounts: parsed.extraction?.bank_accounts || [],
-        phone_numbers: parsed.extraction?.phone_numbers || [],
-        urls: parsed.extraction?.urls || [],
-        emails: parsed.extraction?.emails || [],
-        crypto_addresses: parsed.extraction?.crypto_addresses || []
-      },
-      next_strategy: parsed.next_strategy || 'engage'
-    };
-    
-  } catch (error) {
-    console.error('Perplexity analysis failed:', error.message);
-    
-    // Fallback analysis
-    const isScam = /(won|lottery|prize|pay.*fee|click.*link|virus|bank.*suspend)/i.test(message);
-    
-    return {
-      analysis: {
-        is_scam: isScam,
-        scam_type: isScam ? 'advance_fee' : 'not_scam',
-        confidence: isScam ? 0.85 : 0.2,
-        reason: isScam ? 'Contains scam keywords' : 'No scam indicators'
-      },
-      engagement: {
-        reply: generateFallbackResponse(message),
-        persona_notes: 'Using fallback response'
-      },
-      extraction: extractIntelligence(message),
-      next_strategy: isScam ? 'engage' : 'end'
-    };
-  }
+// 🔥 EXTRACTION FUNCTION
+const extractIntelligence = (text) => {
+  if (!text) return { upi_ids: [], bank_accounts: [], phone_numbers: [], urls: [], emails: [] };
+  
+  return {
+    upi_ids: (text.match(/[\w.\-]+@(okaxis|oksbi|okhdfc|okicici|ybl|axl|paytm)/gi) || []),
+    bank_accounts: (text.match(/\b\d{9,18}\b/g) || []).filter(n => n.length >= 9),
+    phone_numbers: (text.match(/(?:\+91|91|0)?[6-9]\d{9}/g) || []),
+    urls: (text.match(/https?:\/\/[^\s]+/gi) || []),
+    emails: (text.match(/\b[\w.\-]+@[\w.\-]+\.[a-z]{2,}\b/gi) || [])
+  };
 };
 
-// 🔥 FALLBACK RESPONSE GENERATOR
-const generateFallbackResponse = (message) => {
-  const responses = {
-    lottery: [
-      "I didn't buy any lottery ticket. How did I win?",
-      "Which lottery is this? I don't remember.",
-      "My son says lottery messages are always fake.",
-      "25 lakh? That's huge money. But I'm not sure."
-    ],
-    tech_support: [
-      "My computer is slow. Is that the virus?",
-      "Windows? I have Windows 7 only.",
-      "How to check for virus? My son set password.",
-      "Will my photos get deleted?"
-    ],
-    bank_fraud: [
-      "Which bank? I have SBI account only.",
-      "My passbook is with daughter.",
-      "Can't do online banking. Go to branch only.",
-      "Should I call bank manager?"
-    ],
-    default: [
-      "Can you explain? I don't understand.",
-      "My eyes are weak. Can you type clearly?",
-      "Let me think about this.",
-      "I need to ask my son about this."
-    ]
-  };
+// 🔥 FALLBACK RESPONSE
+const generateFallbackResponse = (message, session) => {
+  const msg = message.toLowerCase();
+  const extracted = session?.extracted || {};
   
-  // Determine scam type
-  let scamType = 'default';
-  if (/(won|lottery|prize)/i.test(message)) scamType = 'lottery';
-  else if (/(virus|microsoft|windows|support)/i.test(message)) scamType = 'tech_support';
-  else if (/(bank|account|suspend|kyc)/i.test(message)) scamType = 'bank_fraud';
+  let response = "";
   
-  const chosen = responses[scamType];
-  return chosen[Math.floor(Math.random() * chosen.length)];
+  // Detect scam type
+  if (msg.includes('bank') && (msg.includes('block') || msg.includes('suspend'))) {
+    response = "Which bank? I have SBI only. ";
+  } else if (msg.includes('won') && (msg.includes('lottery') || msg.includes('prize'))) {
+    response = "I didn't buy any lottery ticket. ";
+  } else if (msg.includes('virus') || msg.includes('microsoft')) {
+    response = "My computer is old. ";
+  } else if (msg.includes('click') || msg.includes('link')) {
+    response = "Can't click links. Phone is old. ";
+  } else if (msg.includes('dear') || msg.includes('baby')) {
+    response = "Who is this? ";
+  } else {
+    response = "Can you explain? ";
+  }
+  
+  // Add extraction follow-up
+  if (extracted.upi_ids?.size > 0) {
+    const upi = Array.from(extracted.upi_ids)[0];
+    response += `Is ${upi} correct?`;
+  } else if (extracted.bank_accounts?.size > 0) {
+    const acc = Array.from(extracted.bank_accounts)[0];
+    response += `Account number ${acc}?`;
+  } else if (extracted.phone_numbers?.size > 0) {
+    const phone = Array.from(extracted.phone_numbers)[0];
+    response += `Should I call ${phone}?`;
+  } else if (msg.includes('pay') || msg.includes('fee')) {
+    response += "Where to send payment?";
+  } else {
+    response += "I need more details.";
+  }
+  
+  return response;
+};
+
+// 🔥 EXTRA ENDPOINT FOR JUDGES (Optional)
+export const getIntelligence = async (req, res) => {
+  const { session_id } = req.query;
+  
+  if (session_id && intelligenceLogs.has(session_id)) {
+    return res.status(200).json(intelligenceLogs.get(session_id));
+  }
+  
+  return res.status(200).json({
+    message: "Use /honey-pot endpoint for main API",
+    format: '{"status": "success", "reply": "your response"}'
+  });
 };
 
 // 🔥 CLEANUP OLD SESSIONS
-const cleanupOldSessions = () => {
+setInterval(() => {
   const now = Date.now();
-  const MAX_AGE = 30 * 60 * 1000;
+  const MAX_AGE = 60 * 60 * 1000; // 1 hour
   
-  for (const [sessionId, session] of sessions.entries()) {
+  for (const [key, session] of sessions.entries()) {
     if (now - session.startTime > MAX_AGE) {
-      sessions.delete(sessionId);
+      sessions.delete(key);
+      intelligenceLogs.delete(key);
     }
   }
-};
+}, 300000); // Every 5 minutes
