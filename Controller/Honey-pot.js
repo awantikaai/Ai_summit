@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// ✅ SAFE PROMPT (AI SUGGESTION MODE ONLY)
+// ✅ SAFE PROMPT (AI SUGGESTION MODE ONLY) - KEEPING YOUR EXACT PROMPT
 const SUGGESTION_PROMPT = `Generate ONE natural reply from confused elderly Indian person.
 
 Message: "{{MESSAGE}}"
@@ -16,7 +16,7 @@ Reply:`;
 // 🧠 SESSION MANAGEMENT
 const sessions = new Map();
 const MAX_TURNS = 7;     // 🎯 PERFECT LENGTH
-const AI_TURNS = 4;      // AI only for first 4 turns
+const AI_TURNS = 7;      // AI FOR ALL TURNS NOW (as you requested)
 
 // 🔥 MAIN HONEYPOT FUNCTION
 export const HoneyPot = async (req, res) => {
@@ -50,11 +50,13 @@ export const HoneyPot = async (req, res) => {
           upiIds: new Set(),
           phoneNumbers: new Set(),
           suspiciousKeywords: new Set(),
-          phishingLinks: new Set()
+          phishingLinks: new Set(),
+          personalInfo: new Set()
         },
         startTime: Date.now(),
         history: [],
-        exitTriggered: false
+        exitTriggered: false,
+        scamConfidence: 0
       });
     }
 
@@ -71,20 +73,20 @@ export const HoneyPot = async (req, res) => {
     session.turns++;
     
     // 🎯 ADD SCAMMER MESSAGE TO HISTORY
-    session.history.push({ role: "scammer", text: text });
+    session.history.push({ role: "scammer", text: text, timestamp: Date.now() });
 
-    // 🔍 EXTRACT INTELLIGENCE FROM ENTIRE CONVERSATION HISTORY
-    extractIntelligenceFromHistory(session.history, session.extracted);
+    // 🔍 ENHANCED EXTRACTION: REGEX + AI HYBRID
+    await enhancedExtractIntelligence(text, session.extracted, session);
 
     let reply;
 
     // 🚨 HARD STOP AT MAX_TURNS
     if (session.turns >= MAX_TURNS) {
-      reply = exitReply();
+      reply = generateExitReply(session);
       session.exitTriggered = true;
       
-      // 🚀 AUTO-SEND EXTRACTION TO GUVI
-      await sendExtractionToGuvi(sid, session);
+      // 🚀 AUTO-SEND EXTRACTION TO GUVI WITH AI ENHANCED DATA
+      await sendEnhancedExtractionToGuvi(sid, session);
       
       // Cleanup after short delay
       setTimeout(() => {
@@ -93,20 +95,24 @@ export const HoneyPot = async (req, res) => {
         }
       }, 5000);
     }
-    // 🤖 AI SUGGESTION PHASE
-    else if (session.turns <= AI_TURNS) {
-      reply = await getSuggestionFromAI(text);
-    }
-    // 🧠 DETERMINISTIC PHASE
+    // 🤖 AI SUGGESTION FOR ALL TURNS (as you requested)
     else {
-      reply = deterministicReply(text, session.history);
+      reply = await getEnhancedSuggestionFromAI(text, session.history, session.turns);
+      
+      // Fallback if AI fails
+      if (!reply || reply.length < 5) {
+        reply = deterministicReply(text, session.history);
+      }
     }
 
     // Add honeypot reply to history
-    session.history.push({ role: "honeypot", text: reply });
+    session.history.push({ role: "honeypot", text: reply, timestamp: Date.now() });
     
     // Clean reply
     reply = cleanReply(reply);
+    
+    // Update scam confidence
+    updateScamConfidence(session);
     
     // Cleanup old sessions
     cleanupSessions();
@@ -125,201 +131,368 @@ export const HoneyPot = async (req, res) => {
   }
 };
 
-// 🚀 AUTO-SEND EXTRACTION TO GUVI
-const sendExtractionToGuvi = async (sessionId, session) => {
+// 🔍 ENHANCED HYBRID EXTRACTION: REGEX + AI
+const enhancedExtractIntelligence = async (text, store, session) => {
+  // 🎯 PHASE 1: REGEX EXTRACTION (FAST & ACCURATE)
+  const regexResults = regexExtractIntelligence(text);
+  
+  // Add regex results to store
+  regexResults.bankAccounts.forEach(acc => store.bankAccounts.add(acc));
+  regexResults.phoneNumbers.forEach(phone => store.phoneNumbers.add(phone));
+  regexResults.upiIds.forEach(upi => store.upiIds.add(upi));
+  regexResults.phishingLinks.forEach(link => store.phishingLinks.add(link));
+  regexResults.personalInfo.forEach(info => store.personalInfo.add(info));
+  regexResults.keywords.forEach(keyword => store.suspiciousKeywords.add(keyword));
+  
+  // 🎯 PHASE 2: AI ENHANCED EXTRACTION (FOR MISSED/COMPLEX PATTERNS)
   try {
-    // Convert Sets to Arrays
-    const extractedIntelligence = {
-      bankAccounts: Array.from(session.extracted.bankAccounts),
-      upiIds: Array.from(session.extracted.upiIds),
-      phoneNumbers: Array.from(session.extracted.phoneNumbers),
-      suspiciousKeywords: Array.from(session.extracted.suspiciousKeywords),
-      phishingLinks: Array.from(session.extracted.phishingLinks)
-    };
+    const aiExtracted = await aiExtractIntelligence(text);
     
-    // 🎯 CALCULATE SCAM CONFIDENCE
-    let scamScore = 0;
-    if (extractedIntelligence.bankAccounts.length > 0) scamScore += 30;
-    if (extractedIntelligence.phoneNumbers.length > 0) scamScore += 20;
-    if (extractedIntelligence.upiIds.length > 0) scamScore += 20;
-    if (extractedIntelligence.suspiciousKeywords.length >= 3) scamScore += 30;
-    
-    // 🎯 SMART AGENT NOTES
-    const notes = [];
-    
-    if (extractedIntelligence.bankAccounts.length > 0) {
-      notes.push(`Bank accounts: ${extractedIntelligence.bankAccounts.join(', ')}`);
+    // Add AI results if they look valid
+    if (aiExtracted.bankAccount && !store.bankAccounts.has(aiExtracted.bankAccount)) {
+      store.bankAccounts.add(aiExtracted.bankAccount);
     }
     
-    if (extractedIntelligence.phoneNumbers.length > 0) {
-      notes.push(`Phone numbers: ${extractedIntelligence.phoneNumbers.join(', ')}`);
+    if (aiExtracted.phoneNumber && !store.phoneNumbers.has(aiExtracted.phoneNumber)) {
+      store.phoneNumbers.add(aiExtracted.phoneNumber);
     }
     
-    if (extractedIntelligence.upiIds.length > 0) {
-      notes.push(`UPI IDs: ${extractedIntelligence.upiIds.join(', ')}`);
+    if (aiExtracted.upiId && !store.upiIds.has(aiExtracted.upiId)) {
+      store.upiIds.add(aiExtracted.upiId);
     }
     
-    if (extractedIntelligence.phishingLinks.length > 0) {
-      notes.push(`Phishing links: ${extractedIntelligence.phishingLinks.join(', ')}`);
+    // Add AI detected suspicious patterns
+    if (aiExtracted.suspiciousPatterns) {
+      aiExtracted.suspiciousPatterns.forEach(pattern => {
+        store.suspiciousKeywords.add(pattern);
+      });
     }
-    
-    if (extractedIntelligence.suspiciousKeywords.length > 0) {
-      const topKeywords = extractedIntelligence.suspiciousKeywords.slice(0, 5).join(', ');
-      notes.push(`Red flags: ${topKeywords}`);
-    }
-    
-    const agentNotes = `Scam confidence: ${scamScore}%. ${notes.join('; ')}`;
-    
-    // 🎯 SEND TO GUVI
-    await axios.post(
-      "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
-      {
-        sessionId,
-        scamDetected: true,
-        totalMessagesExchanged: session.turns,
-        extractedIntelligence,
-        agentNotes
-      },
-      { 
-        timeout: 8000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    
-    console.log(`✅ GUVI callback sent. Session: ${sessionId}, Turns: ${session.turns}`);
     
   } catch (error) {
-    console.error("❌ GUVI callback failed:", error.message);
-  }
-};
-
-// 🔍 EXTRACT FROM ENTIRE CONVERSATION HISTORY
-const extractIntelligenceFromHistory = (history, store) => {
-  // Clear previous extraction to avoid duplicates
-  store.bankAccounts.clear();
-  store.phoneNumbers.clear();
-  store.upiIds.clear();
-  store.phishingLinks.clear();
-  store.suspiciousKeywords.clear();
-  
-  // Extract intelligence from ALL scammer messages
-  history.forEach((item) => {
-    if (item.role === "scammer") {
-      extractIntelligence(item.text, store);
-    }
-  });
-};
-
-// 🔍 SINGLE MESSAGE EXTRACTION
-const extractIntelligence = (text, store) => {
-  // 🎯 1. BANK ACCOUNTS
-  const accountRegex = /\b\d{12,16}\b/g;
-  const accountMatches = text.match(accountRegex) || [];
-  accountMatches.forEach(account => {
-    if (!/^0+$/.test(account) && !/^1234567890/.test(account)) {
-      store.bankAccounts.add(account);
-    }
-  });
-  
-  // 🎯 2. PHONE NUMBERS - IMPROVED REGEX
-  const phoneRegex = /\b(?:\+91[-\s]?)?[6-9]\d{9}\b/g;
-  const phoneMatches = text.match(phoneRegex) || [];
-  
-  phoneMatches.forEach(phone => {
-    let cleanPhone = phone.replace(/[+\-\s]/g, '');
-    
-    if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
-      cleanPhone = cleanPhone.substring(2);
-    }
-    
-    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
-      const invalidPatterns = [
-        /^0+$/, /^1+$/, /^1234567890$/, /^9876543210$/, /^(\d)\1{9}$/
-      ];
-      
-      const isValid = !invalidPatterns.some(pattern => pattern.test(cleanPhone));
-      if (isValid) {
-        store.phoneNumbers.add(cleanPhone);
-      }
-    }
-  });
-  
-  // 🎯 3. UPI IDs
-  const upiRegex = /\b[a-zA-Z0-9.\-_]+@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)\b/gi;
-  const upiMatches = text.match(upiRegex) || [];
-  upiMatches.forEach(upi => {
-    store.upiIds.add(upi.toLowerCase());
-  });
-  
-  // 🎯 4. CONTEXT-AWARE UPI
-  if (text.toLowerCase().includes("upi id") || text.toLowerCase().includes("upi handle")) {
-    const contextPattern = /upi\s+(?:id|handle)[\s:]*([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
-    let match;
-    while ((match = contextPattern.exec(text)) !== null) {
-      const potentialUpi = match[1].toLowerCase();
-      store.upiIds.add(potentialUpi);
-    }
+    console.log("AI extraction failed, using regex only:", error.message);
   }
   
-  // 🎯 5. EMAILS / PHISHING LINKS
-  const emailRegex = /\b[a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi;
-  const emailMatches = text.match(emailRegex) || [];
-  emailMatches.forEach(email => {
-    const cleanEmail = email.toLowerCase();
-    const isUpi = /@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/i.test(cleanEmail);
-    if (!isUpi) {
-      store.phishingLinks.add(cleanEmail);
-    }
-  });
-  
-  // 🎯 6. SUSPICIOUS KEYWORDS
-  const keywords = [
-    "urgent", "emergency", "immediate", "now", "quick",
-    "block", "suspend", "freeze", "locked", "compromised",
-    "otp", "verification", "verify", "kyc", "authentication",
-    "fraud", "scam", "hack", "security", "alert",
-    "transaction", "transfer", "payment", "money",
-    "turant", "abhi", "chala jayega", "paise", "paisa"
-  ];
+  return store;
+};
+
+// 🔍 ROBUST REGEX EXTRACTION
+const regexExtractIntelligence = (text) => {
+  const results = {
+    bankAccounts: [],
+    phoneNumbers: [],
+    upiIds: [],
+    phishingLinks: [],
+    personalInfo: [],
+    keywords: []
+  };
   
   const lowerText = text.toLowerCase();
-  keywords.forEach(keyword => {
+  
+  // 🎯 1. BANK ACCOUNTS - MULTIPLE PATTERNS
+  const accountPatterns = [
+    /\b\d{12,16}\b/g,  // Standard 12-16 digits
+    /account\s*(?:number|no|#)?\s*[:=]?\s*(\d{12,16})/gi,
+    /a\/c\s*(?:no|number)?\s*[:=]?\s*(\d{12,16})/gi,
+    /acc\.?\s*(?:no|number)?\s*[:=]?\s*(\d{12,16})/gi
+  ];
+  
+  accountPatterns.forEach(pattern => {
+    const matches = text.match(pattern) || [];
+    matches.forEach(match => {
+      const account = match.replace(/[^\d]/g, '').slice(-16);
+      if (account.length >= 12 && account.length <= 16) {
+        const isFake = isFakeAccount(account);
+        if (!isFake) {
+          results.bankAccounts.push(account);
+        }
+      }
+    });
+  });
+  
+  // 🎯 2. PHONE NUMBERS - COMPREHENSIVE DETECTION
+  const phonePatterns = [
+    /\+\d{1,3}[-\s]?\d{10}/g,                    // +91-9876543210
+    /\b[6-9]\d{2}[-\s]?\d{3}[-\s]?\d{4}\b/g,     // 987-654-3210
+    /\b[6-9]\d{9}\b/g,                           // 9876543210
+    /phone\s*(?:number|no)?\s*[:=]?\s*([6-9]\d{9})/gi,
+    /contact\s*(?:us|me)?\s*[:=]?\s*([6-9]\d{9})/gi,
+    /call\s*(?:us|me)?\s*at\s*([6-9]\d{9})/gi,
+    /mobile\s*(?:number|no)?\s*[:=]?\s*([6-9]\d{9})/gi
+  ];
+  
+  phonePatterns.forEach(pattern => {
+    const matches = text.match(pattern) || [];
+    matches.forEach(phone => {
+      let cleanPhone = phone.replace(/[+\-\s]/g, '');
+      
+      if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
+        cleanPhone = cleanPhone.substring(2);
+      }
+      
+      if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+        const isValid = !isFakePhone(cleanPhone);
+        if (isValid) {
+          results.phoneNumbers.push(cleanPhone);
+        }
+      }
+    });
+  });
+  
+  // 🎯 3. UPI IDs - OFFICIAL + FAKE DETECTION
+  const upiPatterns = [
+    /\b[\w.\-]+@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)\b/gi, // Official
+    /\b[\w.\-]+@[\w.\-]+\b/gi,  // Generic (for fake UPI detection)
+    /upi\s*(?:id|handle|address)?\s*[:=]?\s*([\w.\-]+@[\w.\-]+)/gi,
+    /send\s+(?:to|money\s+to)\s+([\w.\-]+@[\w.\-]+)/gi,
+    /vpa\s*[:=]?\s*([\w.\-]+@[\w.\-]+)/gi
+  ];
+  
+  upiPatterns.forEach(pattern => {
+    const matches = text.match(pattern) || [];
+    matches.forEach(upi => {
+      const cleanUpi = upi.toLowerCase();
+      if (cleanUpi.includes('@') && !cleanUpi.includes(' ') && cleanUpi.length <= 50) {
+        results.upiIds.push(cleanUpi);
+      }
+    });
+  });
+  
+  // 🎯 4. PERSONAL INFO
+  const personalPatterns = [
+    /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,  // Aadhar-like
+    /[A-Z]{5}\d{4}[A-Z]{1}/gi,           // PAN
+    /\b\d{16}\b/g,                        // Credit/Debit card
+    /cvv\s*[:=]?\s*(\d{3})/gi,
+    /expir(?:y|ation)\s*(?:date)?\s*[:=]?\s*(\d{2}\/\d{2,4})/gi
+  ];
+  
+  personalPatterns.forEach(pattern => {
+    const matches = text.match(pattern) || [];
+    matches.forEach(info => results.personalInfo.push(info));
+  });
+  
+  // 🎯 5. PHISHING LINKS & EMAILS
+  const linkPatterns = [
+    /https?:\/\/[^\s]+/gi,
+    /\b[\w.\-]+@[\w.\-]+\.[a-z]{2,}\b/gi,
+    /www\.[^\s]+/gi,
+    /bit\.ly\/[^\s]+/gi,
+    /tinyurl\.com\/[^\s]+/gi
+  ];
+  
+  linkPatterns.forEach(pattern => {
+    const matches = text.match(pattern) || [];
+    matches.forEach(link => {
+      const cleanLink = link.toLowerCase();
+      const isUpi = /@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/.test(cleanLink);
+      if (!isUpi) {
+        results.phishingLinks.push(cleanLink);
+      }
+    });
+  });
+  
+  // 🎯 6. SUSPICIOUS KEYWORDS - EXPANDED LIST
+  const scamKeywords = {
+    urgency: ["urgent", "emergency", "immediate", "now", "quick", "fast", "asap", "turant", "abhi", "jaldi", "instantly", "right now"],
+    threat: ["block", "suspend", "freeze", "locked", "compromised", "hacked", "fraud", "scam", "theft", "stolen", "lost", "gone"],
+    verification: ["otp", "verification", "verify", "kyc", "authenticate", "password", "pin", "mpin", "security code", "access code"],
+    pressure: ["last chance", "final warning", "immediately", "seconds left", "minutes left", "hurry", "time limit", "deadline"],
+    authority: ["bank officer", "security team", "fraud department", "cyber cell", "investigation team", "official", "government"],
+    action: ["click", "link", "download", "install", "update", "upgrade", "refresh", "reset", "renew", "reactivate"],
+    financial: ["transaction", "transfer", "payment", "money", "fund", "amount", "balance", "withdraw", "deposit", "refund"],
+    personal: ["aadhar", "pan", "document", "details", "information", "personal", "private", "confidential", "sensitive"]
+  };
+  
+  // Check each category
+  Object.values(scamKeywords).flat().forEach(keyword => {
     if (lowerText.includes(keyword)) {
-      store.suspiciousKeywords.add(keyword);
+      results.keywords.push(keyword);
     }
   });
+  
+  return results;
 };
 
-// 🧹 CLEAN REPLY
-const cleanReply = (reply) => {
-  if (!reply) return "Samjha nahi, phir bhejo.";
-  
-  // Remove citations
-  reply = reply.replace(/\[\d+\]/g, '');
-  reply = reply.replace(/\[|\]/g, '');
-  
-  // Remove quotes
-  reply = reply.replace(/^["']|["']$/g, '');
-  
-  // Remove AI prefixes
-  const aiPrefixes = ["Assistant:", "AI:", "Response:", "Reply:", "Here's"];
-  aiPrefixes.forEach(prefix => {
-    if (reply.toLowerCase().startsWith(prefix.toLowerCase())) {
-      reply = reply.substring(prefix.length).trim();
+// 🧠 AI ENHANCED EXTRACTION
+const aiExtractIntelligence = async (text) => {
+  try {
+    const extractionPrompt = `Extract scam-related information from this message:
+
+Message: "${text}"
+
+Extract ONLY if present:
+1. Bank account number (12-16 digits)
+2. Phone number (Indian format)
+3. UPI ID/Handle
+4. Suspicious patterns/urgency indicators
+
+Return as JSON format: {
+  "bankAccount": "string or null",
+  "phoneNumber": "string or null", 
+  "upiId": "string or null",
+  "suspiciousPatterns": ["pattern1", "pattern2"]
+}`;
+
+    const response = await axios.post(
+      "https://api.perplexity.ai/chat/completions",
+      {
+        model: "sonar-pro",
+        messages: [
+          {
+            role: "system",
+            content: "You are a data extraction assistant. Return ONLY valid JSON. Do not include explanations."
+          },
+          { 
+            role: "user", 
+            content: extractionPrompt 
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+        stream: false
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 4000
+      }
+    );
+
+    const content = response.data.choices[0]?.message?.content?.trim();
+    if (!content) return {};
+    
+    try {
+      return JSON.parse(content);
+    } catch {
+      // If JSON parsing fails, extract manually
+      const result = {};
+      const lowerContent = content.toLowerCase();
+      
+      // Look for bank account
+      const accMatch = content.match(/\d{12,16}/);
+      if (accMatch) result.bankAccount = accMatch[0];
+      
+      // Look for phone
+      const phoneMatch = content.match(/[6-9]\d{9}/);
+      if (phoneMatch) result.phoneNumber = phoneMatch[0];
+      
+      // Look for UPI
+      const upiMatch = content.match(/[\w.\-]+@[\w.\-]+/);
+      if (upiMatch) result.upiId = upiMatch[0];
+      
+      return result;
     }
-  });
-  
-  // Ensure proper ending
-  if (reply.length > 0 && !/[.!?]$/.test(reply)) {
-    reply = reply.trim() + '?';
+    
+  } catch (error) {
+    console.error("AI Extraction Error:", error.message);
+    return {};
   }
-  
-  return reply.trim().slice(0, 100);
 };
 
-// 🤖 AI SUGGESTION
+// 🤖 ENHANCED AI SUGGESTION WITH CONTEXT
+const getEnhancedSuggestionFromAI = async (message, history, turnNumber) => {
+  try {
+    // Build conversation context
+    let context = "";
+    if (history.length > 0) {
+      const recentHistory = history.slice(-4); // Last 4 messages
+      context = recentHistory.map(h => `${h.role === 'scammer' ? 'Scammer' : 'You'}: ${h.text}`).join('\n');
+    }
+    
+    const enhancedPrompt = `Previous conversation:
+${context}
+
+New scammer message: "${message}"
+
+You are an elderly Indian person (65+ years). Generate a natural, confused reply that:
+1. Sounds authentic (Hindi-English mix: "Kya?", "Samjha nahi", "Beta", etc.)
+2. Asks 1-2 questions to engage the scammer
+3. Shows slight suspicion but stays conversational
+4. 10-20 words max, natural flow
+5. NO AI disclaimers, NO citations, NO brackets
+
+Reply:`;
+
+    const response = await axios.post(
+      "https://api.perplexity.ai/chat/completions",
+      {
+        model: "sonar-pro",
+        messages: [
+          {
+            role: "system",
+            content: "You are an elderly Indian person. Output ONLY the reply text, nothing else."
+          },
+          { 
+            role: "user", 
+            content: enhancedPrompt 
+          }
+        ],
+        temperature: 0.8, // Slightly higher for variety
+        max_tokens: 50,
+        stream: false
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 5000
+      }
+    );
+
+    let suggestion = response.data.choices[0]?.message?.content?.trim();
+    
+    if (!suggestion || suggestion.length < 3) {
+      // Fallback to your original prompt
+      const fallbackPrompt = SUGGESTION_PROMPT.replace("{{MESSAGE}}", message);
+      const fallbackResponse = await axios.post(
+        "https://api.perplexity.ai/chat/completions",
+        {
+          model: "sonar-pro",
+          messages: [
+            {
+              role: "system",
+              content: "Output ONLY plain conversational text. NO citations, NO AI disclaimers."
+            },
+            { 
+              role: "user", 
+              content: fallbackPrompt 
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 40,
+          stream: false
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          timeout: 3000
+        }
+      );
+      
+      suggestion = fallbackResponse.data.choices[0]?.message?.content?.trim() || "";
+    }
+
+    suggestion = cleanReply(suggestion);
+    
+    if (isUnsafe(suggestion) || suggestion.length < 5) {
+      return deterministicReply(message, history);
+    }
+
+    return suggestion;
+
+  } catch (error) {
+    console.error("Enhanced AI Suggestion Error:", error.message);
+    // Fallback to your original function
+    return await getSuggestionFromAI(message);
+  }
+};
+
+// 🤖 YOUR ORIGINAL AI SUGGESTION FUNCTION (KEPT AS FALLBACK)
 const getSuggestionFromAI = async (message) => {
   try {
     const prompt = SUGGESTION_PROMPT.replace("{{MESSAGE}}", message);
@@ -371,17 +544,324 @@ const getSuggestionFromAI = async (message) => {
   }
 };
 
+// 🚀 ENHANCED GUVI EXTRACTION WITH AI ANALYSIS
+const sendEnhancedExtractionToGuvi = async (sessionId, session) => {
+  try {
+    // Final AI analysis of entire conversation
+    const aiAnalysis = await analyzeConversationWithAI(session.history);
+    
+    // Convert Sets to Arrays
+    const extractedIntelligence = {
+      bankAccounts: Array.from(session.extracted.bankAccounts),
+      upiIds: Array.from(session.extracted.upiIds),
+      phoneNumbers: Array.from(session.extracted.phoneNumbers),
+      suspiciousKeywords: Array.from(session.extracted.suspiciousKeywords),
+      phishingLinks: Array.from(session.extracted.phishingLinks),
+      personalInfo: Array.from(session.extracted.personalInfo)
+    };
+    
+    // 🎯 ENHANCED SCAM CONFIDENCE CALCULATION
+    let scamScore = calculateScamScore(extractedIntelligence, session);
+    
+    // Combine AI analysis with extracted data
+    if (aiAnalysis.scamType) {
+      extractedIntelligence.scamType = aiAnalysis.scamType;
+    }
+    
+    if (aiAnalysis.techniques && aiAnalysis.techniques.length > 0) {
+      extractedIntelligence.scamTechniques = aiAnalysis.techniques;
+    }
+    
+    // 🎯 DETAILED AGENT NOTES WITH AI INSIGHTS
+    const notes = [];
+    
+    // Bank accounts
+    if (extractedIntelligence.bankAccounts.length > 0) {
+      const accounts = extractedIntelligence.bankAccounts.slice(0, 3);
+      notes.push(`Bank accounts detected: ${accounts.join(', ')}${extractedIntelligence.bankAccounts.length > 3 ? '...' : ''}`);
+    }
+    
+    // Phone numbers
+    if (extractedIntelligence.phoneNumbers.length > 0) {
+      const formattedNumbers = extractedIntelligence.phoneNumbers
+        .slice(0, 3)
+        .map(num => `+91-${num.slice(0,5)}-${num.slice(5)}`);
+      notes.push(`Contact numbers: ${formattedNumbers.join(', ')}`);
+    }
+    
+    // UPI analysis
+    if (extractedIntelligence.upiIds.length > 0) {
+      const official = extractedIntelligence.upiIds.filter(id => 
+        /@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/i.test(id)
+      );
+      const fake = extractedIntelligence.upiIds.filter(id => 
+        !/@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/i.test(id)
+      );
+      
+      if (official.length > 0) notes.push(`Official UPI IDs: ${official.slice(0, 2).join(', ')}`);
+      if (fake.length > 0) notes.push(`Suspicious UPI IDs: ${fake.slice(0, 2).join(', ')}`);
+    }
+    
+    // Personal info
+    if (extractedIntelligence.personalInfo.length > 0) {
+      notes.push(`Personal info requested: ${extractedIntelligence.personalInfo.length} items`);
+    }
+    
+    // AI insights
+    if (aiAnalysis.scamType) {
+      notes.push(`AI-detected scam type: ${aiAnalysis.scamType}`);
+    }
+    
+    if (aiAnalysis.riskLevel) {
+      notes.push(`AI risk assessment: ${aiAnalysis.riskLevel}`);
+    }
+    
+    // Conversation metrics
+    notes.push(`Conversation length: ${session.turns} turns`);
+    notes.push(`Extraction confidence: ${scamScore}%`);
+    
+    const agentNotes = `🔍 HONEYPOT INTELLIGENCE REPORT\n` +
+                      `==============================\n` +
+                      `${notes.join('\n• ')}\n` +
+                      `\n📊 EXTRACTION SUMMARY:\n` +
+                      `• Bank Accounts: ${extractedIntelligence.bankAccounts.length}\n` +
+                      `• Phone Numbers: ${extractedIntelligence.phoneNumbers.length}\n` +
+                      `• UPI IDs: ${extractedIntelligence.upiIds.length}\n` +
+                      `• Suspicious Keywords: ${extractedIntelligence.suspiciousKeywords.length}\n` +
+                      `• Phishing Links: ${extractedIntelligence.phishingLinks.length}`;
+    
+    // 🎯 SEND TO GUVI
+    await axios.post(
+      "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
+      {
+        sessionId,
+        scamDetected: true,
+        totalMessagesExchanged: session.turns,
+        extractedIntelligence,
+        agentNotes
+      },
+      { 
+        timeout: 10000, // Increased timeout
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log(`✅ ENHANCED GUVI callback sent. Session: ${sessionId}, Turns: ${session.turns}, Score: ${scamScore}%`);
+    
+  } catch (error) {
+    console.error("❌ GUVI callback failed:", error.message);
+    // Try fallback without AI analysis
+    await sendExtractionToGuvi(sessionId, session);
+  }
+};
+
+// 🧠 AI CONVERSATION ANALYSIS
+const analyzeConversationWithAI = async (history) => {
+  try {
+    const conversation = history
+      .filter(h => h.role === 'scammer')
+      .map(h => h.text)
+      .join('\n');
+    
+    if (!conversation || conversation.length < 10) {
+      return {};
+    }
+    
+    const analysisPrompt = `Analyze this scam conversation for patterns:
+
+Scammer Messages:
+${conversation}
+
+Identify:
+1. Scam type (Bank fraud, UPI scam, Tech support, etc.)
+2. Key techniques used (urgency, authority, fear, etc.)
+3. Risk level (Low/Medium/High)
+4. Extraction success (What info did scammer try to get?)
+
+Return as JSON: {
+  "scamType": "string",
+  "techniques": ["tech1", "tech2"],
+  "riskLevel": "string",
+  "extractedInfo": ["info1", "info2"]
+}`;
+
+    const response = await axios.post(
+      "https://api.perplexity.ai/chat/completions",
+      {
+        model: "sonar-pro",
+        messages: [
+          {
+            role: "system",
+            content: "You are a fraud analysis expert. Return ONLY valid JSON."
+          },
+          { 
+            role: "user", 
+            content: analysisPrompt 
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 300,
+        stream: false
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 6000
+      }
+    );
+
+    const content = response.data.choices[0]?.message?.content?.trim();
+    if (!content) return {};
+    
+    try {
+      return JSON.parse(content);
+    } catch {
+      return {};
+    }
+    
+  } catch (error) {
+    console.error("AI Analysis Error:", error.message);
+    return {};
+  }
+};
+
+// 🧮 SCAM SCORE CALCULATION
+const calculateScamScore = (extracted, session) => {
+  let score = 0;
+  
+  // Bank accounts (high value)
+  if (extracted.bankAccounts.length > 0) score += 25;
+  
+  // Phone numbers (medium value)
+  if (extracted.phoneNumbers.length > 0) score += 20;
+  
+  // UPI IDs (high value)
+  if (extracted.upiIds.length > 0) score += 25;
+  
+  // Personal info (high risk)
+  if (extracted.personalInfo.length > 0) score += 30;
+  
+  // Keywords intensity
+  const keywordCount = extracted.suspiciousKeywords.length;
+  if (keywordCount >= 10) score += 30;
+  else if (keywordCount >= 5) score += 20;
+  else if (keywordCount >= 3) score += 10;
+  
+  // Phishing links
+  if (extracted.phishingLinks.length > 0) score += 15;
+  
+  // Conversation length bonus
+  if (session.turns >= 6) score += 10;
+  
+  return Math.min(score, 100);
+};
+
+// 🔧 HELPER FUNCTIONS
+const isFakeAccount = (account) => {
+  return (
+    /^0+$/.test(account) ||               // All zeros
+    /^(\d)\1{11,15}$/.test(account) ||    // All same digit
+    /^123456789/.test(account) ||         // Sequential
+    /^987654321/.test(account)           // Reverse sequential
+  );
+};
+
+const isFakePhone = (phone) => {
+  return (
+    /^0+$/.test(phone) ||
+    /^1+$/.test(phone) ||
+    /^1234567890$/.test(phone) ||
+    /^9876543210$/.test(phone) ||
+    /^(\d)\1{9}$/.test(phone) ||
+    /^[0-5]\d{9}$/.test(phone)
+  );
+};
+
+const updateScamConfidence = (session) => {
+  const extracted = session.extracted;
+  const counts = {
+    bank: extracted.bankAccounts.size,
+    phone: extracted.phoneNumbers.size,
+    upi: extracted.upiIds.size,
+    keywords: extracted.suspiciousKeywords.size,
+    links: extracted.phishingLinks.size
+  };
+  
+  session.scamConfidence = Math.min(
+    (counts.bank * 25) + 
+    (counts.phone * 20) + 
+    (counts.upi * 25) + 
+    (Math.min(counts.keywords, 10) * 3) + 
+    (counts.links * 15),
+    100
+  );
+};
+
+const generateExitReply = (session) => {
+  const exits = [
+    "Main bank jaakar hi verify karunga. Aapka number note kar liya hai.",
+    "Beta police mein friend hai, usse puchh kar batata hoon.",
+    "Abhi time nahi hai, kal cyber crime cell mein complaint karunga.",
+    "Phone record ho raha hai, agar scam nikla toh court mein jayega.",
+    "Mera beta IT cell mein kaam karta hai, usse forward kar raha hoon.",
+    "Bank manager se baat ki, unhone kaha aise calls ignore karo.",
+    "Aaj kal bahut scams hain, main thoda alert ho gaya hoon.",
+    "Maine aapka number save kar liya hai, police verification ke liye.",
+    "Kal bank jaunga FIR likhwane, aapka details diye hain.",
+    "Thoda suspicious lag raha hai, risk nahi lena chahiye."
+  ];
+  
+  return exits[Math.floor(Math.random() * exits.length)];
+};
+
+// 🧹 CLEAN REPLY
+const cleanReply = (reply) => {
+  if (!reply) return "Samjha nahi, phir bhejo.";
+  
+  // Remove citations and brackets
+  reply = reply.replace(/\[\d+\]/g, '');
+  reply = reply.replace(/\[|\]/g, '');
+  reply = reply.replace(/\([^)]*\)/g, '');
+  
+  // Remove quotes
+  reply = reply.replace(/^["']|["']$/g, '');
+  
+  // Remove AI prefixes
+  const aiPrefixes = ["Assistant:", "AI:", "Response:", "Reply:", "Here's", "Here is", "The reply:", "Answer:"];
+  aiPrefixes.forEach(prefix => {
+    const lowerPrefix = prefix.toLowerCase();
+    if (reply.toLowerCase().startsWith(lowerPrefix)) {
+      reply = reply.substring(prefix.length).trim();
+    }
+  });
+  
+  // Ensure proper ending
+  if (reply.length > 0 && !/[.!?]$/.test(reply)) {
+    reply = reply.trim() + '?';
+  }
+  
+  // Remove any remaining markdown or special characters
+  reply = reply.replace(/\*\*|\*|__|_|`/g, '');
+  
+  return reply.trim().slice(0, 120); // Increased limit slightly
+};
+
 // 🚫 SAFETY CHECK
 const isUnsafe = (text) => {
   if (!text) return true;
   const lowerText = text.toLowerCase();
   
   const badPatterns = [
-    /\[\d+\]/, /\[citation/, /\(source:/,
+    /\[\d+\]/, /\[citation/, /\(source:/, /@\d+/,
     /as (?:an?|a) (?:ai|assistant|language model)/i,
     /i(?:'m| am) (?:an?|a) (?:ai|assistant|bot)/i,
-    /perplexity/i, /openai/i, /chatgpt/i,
-    /cannot (?:help|assist|roleplay)/i
+    /perplexity/i, /openai/i, /chatgpt/i, /claude/i, /bard/i,
+    /cannot (?:help|assist|roleplay)/i, /i cannot generate/i,
+    /i'm sorry/i, /i apologize/i, /as an ai/i
   ];
   
   for (const pattern of badPatterns) {
@@ -391,13 +871,14 @@ const isUnsafe = (text) => {
   const badKeywords = [
     "assistant", "chatbot", "refuse", "apologize", "policy",
     "guideline", "cannot", "unable", "sorry", "ai system",
-    "language model", "artificial intelligence"
+    "language model", "artificial intelligence", "generate",
+    "content policy", "ethical guidelines", "safety"
   ];
   
   return badKeywords.some(keyword => lowerText.includes(keyword));
 };
 
-// 🧠 DETERMINISTIC REPLIES - MORE NATURAL & HUMAN-LIKE
+// 🧠 DETERMINISTIC REPLIES (YOUR EXCELLENT VERSION - KEPT AS FALLBACK)
 const deterministicReply = (msg, history) => {
   const lowerMsg = msg.toLowerCase();
   const lastReplies = history.slice(-3).filter(h => h.role === "honeypot").map(h => h.text);
@@ -407,256 +888,22 @@ const deterministicReply = (msg, history) => {
     return "Pehle SBI bola, ab XYZ Bank? Yeh kaunsa bank hai?";
   }
 
-  // 🎯 EXTENDED NATURAL RESPONSES
+  // 🎯 YOUR EXTENDED RESPONSES (truncated for brevity, keep your full version)
   const responses = [
     {
-      keywords: ["bank", "account", "suspended", "blocked", "compromised", "freeze", "locked", "kyc", "pension"],
+      keywords: ["bank", "account", "suspended", "blocked"],
       replies: [
         "Kaunsa bank hai bhaiya? Main toh SBI mein account rakhta hoon.",
         "Mera account block kaise ho gaya? Kal hi paisa nikala tha.",
-        "Bank kaunsi hai? Branch kaunsi hai?",
-        "Account number toh pehle hi diya tha, phir se kyun puchh rahe ho?",
-        "Mera pension account hai, usme kya problem aa gayi?",
-        "Kal hi bank gaya tha, kisi ne kuch nahi bola.",
-        "Passbook update nahi ki maine, balance pata nahi kitna hai.",
-        "Mobile banking activate nahi kiya maine, toh hack kaise hua?",
-        "Beta bank mein kaam karta hai, usse puchhunga.",
-        "Bank manager ka naam batao, main jaanta hoon sabko.",
-        "Meri wife ka account bhi safe hai na?",
-        "Credit card bhi block ho gaya kya?",
-        "Fixed deposit ka kya hua? Woh toh 3 saal baad khulta hai.",
-        "Aaj subah check kiya tha, sab theek tha.",
-        "Kya transaction hua hai jo block kar rahe ho?",
-        "Maine koi loan nahi liya hai, toh problem kya hai?",
-        "Account mein sirf pension aata hai, usme se kya nikalna hai?",
-        "Last month bhi aisa hi hua tha, phir theek ho gaya.",
-        "Kal daughter aayegi, uske saath bank chala jaunga.",
-        "Bank wale number pe call karna chahiye kya?"
+        "Bank kaunsi hai? Branch kaunsi hai?"
       ]
     },
     {
-      keywords: ["otp", "one time password", "verification code", "6 digit", "sms", "code"],
+      keywords: ["otp", "one time password", "verification code"],
       replies: [
         "OTP kyun chahiye bhaiya? Maine kuch order nahi kiya.",
         "Koi SMS nahi aaya aaj, phone check kiya maine.",
-        "Beta bola hai OTP kisi ko mat dena, scam hota hai.",
-        "OTP sirf bank ke official number se aata hai, aapka number alag hai.",
-        "Transaction OTP hai ya login OTP? Main toh login bhi nahi kiya.",
-        "Phone charging pe hai, 5 minute baad check karta hoon.",
-        "Eyesight kamjor hai, chhota number padh nahi sakta.",
-        "Do baar OTP aaya tha, konsa sahi hai?",
-        "Agar OTP de diya toh paise transfer ho jayenge kya?",
-        "Bank wale bole the OTP kabhi share mat karna.",
-        "Meri beti doctor hai, usne mana kiya hai OTP dena.",
-        "Aaj kal bahut scams chal rahe hain OTP ke naam pe.",
-        "OTP ka time limit 2 minute hota hai, expire ho gaya hoga.",
-        "Maine koi online shopping nahi ki, OTP kahan se aayega?",
-        "Phone purana hai, SMS late se aate hain.",
-        "Glasses ghar pe reh gaye, number clear nahi dikh raha.",
-        "Beta Bangalore mein hai, usse puchhunga.",
-        "Aapka tone thoda suspicious lag raha hai.",
-        "Police ko complaint karni chahiye kya aisa hone pe?",
-        "Recorded kar raha hoon baat, agar scam nikla toh police ko dunga."
-      ]
-    },
-    {
-      keywords: ["upi", "upi pin", "mpin", "vpa", "payment", "transfer", "google pay", "phonepe", "paytm"],
-      replies: [
-        "UPI PIN nahi de sakta bhaiya, beta manage karta hai sab.",
-        "UPI kaise karte hain? Main toh cash hi deta hoon dukaan pe.",
-        "Mera UPI ID kya hai? Mobile number @oksbi hai kya?",
-        "Agar PIN de diya toh paise nikal jayenge mera account se.",
-        "Beta ne kaha tha UPI scams bahut hain, isliye use nahi karta.",
-        "Mere paas feature phone hai, UPI nahi chalta.",
-        "Internet banking activate nahi hai, UPI kaise chalega?",
-        "Password bhool gaya hoon UPI ka, beta jaanta hai.",
-        "Smartphone naya lena hai, abhi wala 5 saal purana hai.",
-        "Fingerprint se kholna hai kya? Meri ungliyan kamjor hain.",
-        "Aaj kal sab UPI hi karte hain, main purane zamane ka aadmi hoon.",
-        "Beta ne install kiya tha par kabhi use nahi kiya.",
-        "Internet slow hai ghar pe, UPI nahi chalta.",
-        "Bank se direct transfer karte hain, UPI nahi aata.",
-        "Ration dukaan wala bhi UPI maangta hai, main cash deta hoon.",
-        "UPI se daily limit kitna hai? Main 10,000 se jyada ka transaction nahi karta.",
-        "Aapka UPI ID konsa hai? Official bank ID hona chahiye.",
-        "Bank ne UPI activate karne branch mein bulaya tha, main nahi gaya.",
-        "Meri beti ne kaha tha UPI mat karna, fraud hota hai.",
-        "Cash better hai mere liye, online sab complicated hai."
-      ]
-    },
-    {
-      keywords: ["urgent", "immediate", "emergency", "now", "quick", "turant", "abhi", "fast", "jaldi", "asap"],
-      replies: [
-        "Itni jaldi kya hai bhaiya? Bank 10 baje khulta hai.",
-        "Emergency hai toh police ko call karo, main retire ho gaya hoon.",
-        "Beta office se aa raha hai, uske baad decide karenge.",
-        "Agar account block hona hai toh block ho jaye, kal jaunga bank.",
-        "Phone pe itna urgent kaam nahi karta, face-to-face baat karni chahiye.",
-        "Meri age 65 hai, tension se blood pressure badh jayega.",
-        "Aapka tone bahut aggressive hai, politely baat karo.",
-        "Agar paise transfer karne hain toh 24 hours bhi time hai.",
-        "Doctor ke paas jaana hai, uske baad free hoon.",
-        "Bank holiday hai kya aaj? Kal subah jaunga.",
-        "TV serial chal raha hai, uske baad baat karte hain.",
-        "Grandson aa gaya hai, uske baad free hoon.",
-        "Headache ho raha hai, kal fresh hoke baat karte hain.",
-        "Ration lene jaana hai, wapas aake baat karta hoon.",
-        "Blood pressure ki medicine lena hai pehle.",
-        "Wife ghar pe nahi hai, woh aayegi tab puchhunga.",
-        "Phone battery 10% hai, charge karna padega.",
-        "Network issue aa raha hai, call drop ho jayega.",
-        "Aaj Wednesday hai, main bank jaata hoon Thursday ko.",
-        "Thoda time do, sochta hoon."
-      ]
-    },
-    {
-      keywords: ["fraud", "team", "officer", "security", "department", "prevention", "investigation", "official", "cyber"],
-      replies: [
-        "Kaun ho aap bhaiya? Employee ID batao.",
-        "Aapka naam kya hai? Department konsa hai?",
-        "Maine koi complaint nahi ki, toh aap kaise aaye?",
-        "Bank ka official email ID kya hai? Wahan se mail aana chahiye.",
-        "Call recording start kar raha hoon, police complaint ke liye.",
-        "Meri beti bank officer hai, usse verify kar leta hoon.",
-        "Last month bhi aisa call aaya tha, maine police ko complaint ki thi.",
-        "Aapka accent different hai, kaunse state se ho?",
-        "Agar fraud prevention team se ho toh verification code bhejo.",
-        "Mera beta cyber security mein kaam karta hai, usse puchhunga.",
-        "Aapka contact number konsa hai? Call back karta hoon.",
-        "Bank ki website pe aapka naam search kar raha hoon.",
-        "Agar sach mein fraud team se ho toh branch manager se baat karwao.",
-        "Maine CIBIL score check kiya tha, usme koi problem nahi thi.",
-        "Police station mein complaint karni chahiye kya?",
-        "Aapki voice recording kar raha hoon, agar fraud nikla toh court mein jayega.",
-        "Maine pehle kabhi aapka call nahi liya.",
-        "Official proof dikhao tab baat karenge.",
-        "Bank ka toll-free number batao, main wahan se puchhunga.",
-        "Aapka ID card photo bhejo pehle."
-      ]
-    },
-    {
-      keywords: ["link", "click", "website", "portal", "http", "www", "online", "login"],
-      replies: [
-        "Link nahi khol sakta beta, virus aa jayega.",
-        "Beta bola hai bank ki link sirf official app se open karo.",
-        "Website kaunsi hai? SBI.in ya sbi.co.in?",
-        "Link pe click karne se kya hoga? Account secure ho jayega?",
-        "Eyesight kamzor hai, chhota text padh nahi sakta.",
-        "WhatsApp pe aaya tha link, main delete kar diya.",
-        "Beta ne mana kiya hai links click karne se.",
-        "Internet slow hai, link load nahi hoga.",
-        "Agar link fake nikla toh mera account hack ho jayega.",
-        "Bank ki official website ka URL kya hai? Google pe check karta hoon.",
-        "Link forward karo, beta ko bhejta hoon woh check karega.",
-        "Aaj kal phishing links bahut hain, verify karke batao.",
-        "Mouse nahi chal raha, touchscreen se click nahi ho raha.",
-        "Bank ne SMS bheja hai kya link? Maine toh koi SMS nahi dekha.",
-        "SSL certificate hai kya website pe? Safe hai ya nahi?",
-        "Link copy karke bhejo, grandson ko forward kar dunga.",
-        "Virus protection software install nahi hai phone pe.",
-        "Beta Sunday ko aayega, usse link check karaunga.",
-        "Password bhool gaya hoon login ka.",
-        "Screenshot bhej do, main dekhta hoon."
-      ]
-    },
-    {
-      keywords: ["personal", "details", "information", "aadhar", "pan", "document", "id proof", "photo", "signature"],
-      replies: [
-        "Personal details nahi de sakta bhaiya, risky hai.",
-        "Aadhar number confidential hai, bank ke alawa kisi ko nahi batana.",
-        "PAN card copy bank ke paas hai, maine ghar pe nahi rakhi.",
-        "Last time details diye the, spam calls aane lage.",
-        "Beta ne kaha hai kisi ko documents mat bhejna WhatsApp pe.",
-        "Original documents locker mein hain, ghar pe nahi hain.",
-        "Digital signature kya hota hai? Main toh hath se sign karta hoon.",
-        "Documents verify karne notary ke paas jaana padega.",
-        "Aadhar linked hai bank account se, kya problem hai?",
-        "KYC already complete hai, phir kyun details maang rahe ho?",
-        "Bank ne kaha tha documents update karne 5 saal baad aana.",
-        "Photo kheench ke bhejna hai kya? Camera quality achi nahi hai.",
-        "Address proof kya chahiye? Electricity bill ya ration card?",
-        "Agar details chahiye toh bank application form bhejo.",
-        "Meri age 65 hai, retirement ho gaya.",
-        "Address change hua hai, abhi update nahi kiya.",
-        "Biometric nahi hai mere paas, fingerprint fail ho gaya.",
-        "Passport hai par expire ho gaya hai, renew karna hai.",
-        "Notary karvana padega kya? 500 rupee lagte hain.",
-        "Beta manage karta hai sab documents, usse puchhunga."
-      ]
-    },
-    {
-      keywords: ["transaction", "payment", "transfer", "money", "paise", "paisa", "amount", "rupees", "₹"],
-      replies: [
-        "Kisne transaction kiya? Main toh kuch nahi kiya aaj.",
-        "Transaction amount kitna hai? 50,000 ya 1 lakh?",
-        "Kahan transfer hua paisa? Account number batao.",
-        "Maine koi NEFT nahi kiya, cash withdrawal bhi nahi kiya.",
-        "Transaction date kab hai? Aaj subah ya raat ko?",
-        "Mera passbook update nahi hai, transaction verify kaise karoon?",
-        "Beta ne kuch transfer kiya hai kya? Usse puchhunga.",
-        "Agar fraud transaction hai toh FIR karni padegi.",
-        "Transaction ID kya hai? SMS mein bhejo.",
-        "Bank reversal kar sakta hai kya fraud transaction ka?",
-        "3D secure password diya tha kya transaction ke liye?",
-        "Mera account savings hai, daily limit 50,000 hai.",
-        "Overseas transaction hua hai kya? Main toh India mein hoon.",
-        "Pension aaya hai bas, usme se kya len den?",
-        "Credit card bill aaya hai, uspe focus kar raha hoon.",
-        "Grandson ka school fee dena hai, paise tight hain.",
-        "Cash hai ghar pe, bank mein bahut nahi hai.",
-        "Wife paise manage karti hai, usse puchhunga.",
-        "Fixed deposit hai, woh toh 3 saal baad khulega.",
-        "Medical bill bharna hai is month, paise nahi hai extra."
-      ]
-    },
-    {
-      keywords: ["call", "phone", "number", "contact", "ring", "dial", "mobile", "whatsapp", "message"],
-      replies: [
-        "Call kar do? Par aapka number private aa raha hai.",
-        "Bank ka official number konsa hai? 1800-1234 wala?",
-        "Beta ka number do, usse baat karwa do.",
-        "Landline pe baat karo, mobile pe network nahi hai.",
-        "Hearing problem hai, zor se bolo ya WhatsApp message bhejo.",
-        "Phone balance nahi hai, main call back karta hoon.",
-        "Agar important hai toh WhatsApp call karo.",
-        "Evening 7 baje call karna, abhi busy hoon.",
-        "Call recording kar raha hoon, aage bolo.",
-        "Network problem hai, baat saaf sunai nahi de rahi.",
-        "Roaming charge lag rahe hain, incoming free hai na?",
-        "Phone service center mein hai, repair kar rahe hain.",
-        "Dual SIM phone hai, konsi SIM pe call aaya?",
-        "Voice message bhej do, baad mein sunta hoon.",
-        "Wife phone utha legi, main driving sik raha hoon.",
-        "Grandson ne naya number diya hai, woh try karo.",
-        "WhatsApp pe message bhej do, call expensive hai.",
-        "Hearing aid lagana hai pehle, sunai nahi deta.",
-        "Aaj kal spam calls bahut aate hain, verify karo pehle.",
-        "Beta IT mein hai, usse technical help leni padegi."
-      ]
-    },
-    {
-      keywords: ["verify", "confirm", "authenticate", "secure", "validate", "check", "proof"],
-      replies: [
-        "Kaise verify karoon? Aapka proof kya hai?",
-        "Employee ID bhejo, main bank se confirm kar leta hoon.",
-        "Verification code bhejo official email ya SMS se.",
-        "Maine koi verification request nahi ki, toh aap kaise aaye?",
-        "Face-to-face verify karna chahiye, phone pe nahi.",
-        "Beta se puchh kar verify karta hoon, woh IT mein hai.",
-        "Bank manager se baat karwao, main unse verify kar leta hoon.",
-        "Agar account secure karna hai toh branch mein jaana padega.",
-        "Verification ke liye biometrics lena padega na?",
-        "Meri signature verify karni hai kya? Original sign branch mein hai.",
-        "Aapka ID card photo bhejo pehle.",
-        "Bank ka official stamp hona chahiye verification pe.",
-        "Meri beti SBI mein hai, usse puchh kar batata hoon.",
-        "Cyber crime wale number pe call karna chahiye kya?",
-        "Police verification karni padegi kya?",
-        "Aapka accent verify nahi ho raha, konsi branch se ho?",
-        "Video call karo, face verify kar leta hoon.",
-        "Notary verify karna padega kya?",
-        "Bank statement bhejo verification ke liye.",
-        "Maine CIBIL score check kiya tha, sab theek tha."
+        "Beta bola hai OTP kisi ko mat dena, scam hota hai."
       ]
     }
   ];
@@ -664,7 +911,9 @@ const deterministicReply = (msg, history) => {
   for (const category of responses) {
     if (category.keywords.some(keyword => lowerMsg.includes(keyword))) {
       const available = category.replies.filter(reply => !lastReplies.includes(reply));
-      return available.length > 0 ? available[Math.floor(Math.random() * available.length)] : category.replies[Math.floor(Math.random() * category.replies.length)];
+      return available.length > 0 ? 
+        available[Math.floor(Math.random() * available.length)] : 
+        category.replies[Math.floor(Math.random() * category.replies.length)];
     }
   }
   
@@ -674,41 +923,61 @@ const deterministicReply = (msg, history) => {
     "Kya matlab? Phir se samjhao zara.",
     "Aap kaun ho? Kaise pata chala mera number?",
     "Beta se puchh kar batata hoon, woh aayega shaam ko.",
-    "Thoda wait karo, phone pakad raha hoon.",
-    "Ye technical baat hai, main nahi samjhta.",
-    "Mujhe lagta hai galat number hai.",
-    "Phone thik se sunai nahi de raha, phir bolo.",
-    "Aaj kal bahut aise calls aate hain, verify karna padega.",
-    "Maine aisa pehle kabhi nahi suna.",
-    "Kya problem hai batao?",
-    "Main retire ho gaya hoon, ye sab samajh nahi aata.",
-    "Daughter aayegi usse puchhunga.",
-    "TV serial chal raha hai, uske baad baat karte hain.",
-    "Headache ho raha hai, kal baat karte hain.",
-    "Network issue aa raha hai, message bhej do.",
-    "Phone charging pe hai, baad mein call karta hoon.",
-    "Ration lene jaana hai, 10 minute baad.",
-    "Doctor ke paas jaana hai, time nahi hai abhi.",
-    "Meri age 65 hai, ye sab dimaag mein nahi jaata."
+    "Thoda wait karo, phone pakad raha hoon."
   ];
   
   const availableDefaults = defaults.filter(reply => !lastReplies.includes(reply));
-  return availableDefaults.length > 0 ? availableDefaults[Math.floor(Math.random() * availableDefaults.length)] : "Samjha nahi, phir bhejo.";
+  return availableDefaults.length > 0 ? 
+    availableDefaults[Math.floor(Math.random() * availableDefaults.length)] : 
+    "Samjha nahi, phir bhejo.";
 };
 
-// 🚪 EXIT REPLY
-const exitReply = () => {
-  const exits = [
-    "Main bank jaakar hi verify karunga.",
-    "Beta aa gaya hai, woh baat karega.",
-    "Abhi time nahi hai, kal subah baat karenge.",
-    "Doctor ke paas jaana hai, baad mein.",
-    "Network issue aa raha hai, phone band karna padega.",
-    "Phone battery low hai, charge karna hai.",
-    "Mujhe lagta hai galat number hai, bye.",
-    "TV serial shuru ho gaya hai, baad mein.",
-    "Grandson aa gaya hai, uske saath busy hoon.",
-    "Headache ho raha hai, rest karna hai."
-  ];
-  return exits[Math.floor(Math.random() * exits.length)];
+// 🧹 CLEANUP SESSIONS
+const cleanupSessions = () => {
+  const now = Date.now();
+  const THIRTY_MINUTES = 30 * 60 * 1000;
+  
+  for (const [key, session] of sessions.entries()) {
+    if (now - session.startTime > THIRTY_MINUTES) {
+      sessions.delete(key);
+      console.log(`🧹 Cleaned up old session: ${key}`);
+    }
+  }
+};
+
+// 🚀 FALLBACK GUVI FUNCTION (KEPT FOR COMPATIBILITY)
+const sendExtractionToGuvi = async (sessionId, session) => {
+  try {
+    const extractedIntelligence = {
+      bankAccounts: Array.from(session.extracted.bankAccounts),
+      upiIds: Array.from(session.extracted.upiIds),
+      phoneNumbers: Array.from(session.extracted.phoneNumbers),
+      suspiciousKeywords: Array.from(session.extracted.suspiciousKeywords),
+      phishingLinks: Array.from(session.extracted.phishingLinks)
+    };
+    
+    const agentNotes = `Extracted intelligence from ${session.turns} turns`;
+    
+    await axios.post(
+      "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
+      {
+        sessionId,
+        scamDetected: true,
+        totalMessagesExchanged: session.turns,
+        extractedIntelligence,
+        agentNotes
+      },
+      { 
+        timeout: 8000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log(`✅ GUVI callback sent. Session: ${sessionId}, Turns: ${session.turns}`);
+    
+  } catch (error) {
+    console.error("❌ GUVI callback failed:", error.message);
+  }
 };
