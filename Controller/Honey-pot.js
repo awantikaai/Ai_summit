@@ -214,15 +214,7 @@ const extractIntelligence = (text, store) => {
   while ((accMatch = accountContextPattern.exec(text)) !== null) {
     store.bankAccounts.add(accMatch[1]);
   }
-  
-  // 🎯 2. PHONE NUMBERS - FIXED! ACTUALLY EXTRACTS NUMBERS
-  // Method 1: Find all 10-digit numbers starting with 6-9
-  const allNumbers = text.match(/\d+/g) || [];
-  allNumbers.forEach(num => {
-    if (num.length === 10 && /^[6-9]/.test(num)) {
-      store.phoneNumbers.add(num);
-    }
-  });
+ 
   
   // Method 2: Match +91-9876543210 format
   const plus91Pattern = /\+91[-\s]?\d{10}/g;
