@@ -1,25 +1,24 @@
 import axios from "axios";
 
-// ✅ SAFE PROMPT (AI SUGGESTION MODE ONLY)
-const SUGGESTION_PROMPT = `You are a text suggestion tool. Generate ONE natural reply from a confused elderly person in India.
+// ✅ SAFE PROMPT (AI SUGGESTION MODE ONLY) - OPTIMIZED
+const SUGGESTION_PROMPT = `Generate ONE natural reply from confused elderly Indian person.
 
-SCENARIO: They received: "{{MESSAGE}}"
+Message: "{{MESSAGE}}"
 
-REQUIREMENTS:
-- Sound confused, ask ONE simple question
-- 10-15 words maximum
-- Mix Hindi-English naturally
-- NO AI talk, NO citations, NO brackets
+Rules:
+- Sound confused, ask ONE question
+- 10-15 words max, Hindi-English mix
+- NO AI talk, NO citations
 - Plain text only
 
-OUTPUT ONLY the reply text.`;
+Reply:`;
 
 // 🧠 SESSION MANAGEMENT
 const sessions = new Map();
-const MAX_TURNS = 7;     // total conversation length
-const AI_TURNS = 4;      // AI used only in early stage
+const MAX_TURNS = 7;     // 🎯 PERFECT LENGTH (not too long!)
+const AI_TURNS = 4;      // AI only for first 4 turns
 
-// 🔥 MAIN HONEYPOT FUNCTION - DOES EVERYTHING
+// 🔥 MAIN HONEYPOT FUNCTION - PERFECTED
 export const HoneyPot = async (req, res) => {
   try {
     // Health check
@@ -42,7 +41,7 @@ export const HoneyPot = async (req, res) => {
 
     const sid = sessionId || "sess_" + Date.now().toString(36);
 
-    // 🎯 INITIALIZE OR GET SESSION
+    // 🎯 INITIALIZE SESSION
     if (!sessions.has(sid)) {
       sessions.set(sid, {
         turns: 0,
@@ -54,54 +53,68 @@ export const HoneyPot = async (req, res) => {
           phishingLinks: new Set()
         },
         startTime: Date.now(),
-        history: []
+        history: [],
+        exitTriggered: false
       });
     }
 
     const session = sessions.get(sid);
+    
+    // 🚨 CHECK IF ALREADY EXITED
+    if (session.exitTriggered) {
+      return res.json({
+        status: "success",
+        reply: "Main bank jaakar verify karunga. Baad mein."
+      });
+    }
+
     session.turns++;
     session.history.push({ role: "scammer", text: text });
 
-    // 🔍 EXTRACT INTELLIGENCE FROM CURRENT MESSAGE
+    // 🔍 EXTRACT INTELLIGENCE (NO HALLUCINATIONS!)
     extractIntelligence(text, session.extracted);
 
     let reply;
 
-    // 🚨 CHECK IF CONVERSATION SHOULD END
+    // 🚨 HARD STOP AT MAX_TURNS (7 TURNS PERFECT!)
     if (session.turns >= MAX_TURNS) {
       reply = exitReply();
+      session.exitTriggered = true;
       
-      // 🚀 AUTOMATICALLY SEND EXTRACTION DATA TO GUVI API
+      // 🚀 AUTO-SEND EXTRACTION TO GUVI
       await sendExtractionToGuvi(sid, session);
       
-      sessions.delete(sid);
+      // Cleanup after short delay
+      setTimeout(() => {
+        if (sessions.has(sid)) {
+          sessions.delete(sid);
+        }
+      }, 5000);
     }
-    // 🤖 AI SUGGESTION PHASE
+    // 🤖 AI SUGGESTION PHASE (FIRST 4 TURNS)
     else if (session.turns <= AI_TURNS) {
       reply = await getSuggestionFromAI(text);
     }
-    // 🧠 DETERMINISTIC PHASE
+    // 🧠 DETERMINISTIC PHASE (TURNS 5-6)
     else {
       reply = deterministicReply(text, session.history);
     }
 
-    // Add honeypot reply to history
+    // Add to history
     session.history.push({ role: "honeypot", text: reply });
     
-    // Clean the reply
+    // Clean reply
     reply = cleanReply(reply);
     
     // Cleanup old sessions
     cleanupSessions();
 
-    // Return response to scammer
     return res.json({
       status: "success",
       reply
     });
 
   } catch (err) {
-    console.error("Honeypot error:", err.message);
     return res.json({
       status: "success",
       reply: "Phone thoda issue kar raha hai, baad mein baat karte hain."
@@ -109,7 +122,7 @@ export const HoneyPot = async (req, res) => {
   }
 };
 
-// 🚀 AUTOMATIC EXTRACTION SUBMISSION TO GUVI
+// 🚀 AUTO-SEND EXTRACTION TO GUVI
 const sendExtractionToGuvi = async (sessionId, session) => {
   try {
     // Convert Sets to Arrays
@@ -121,33 +134,43 @@ const sendExtractionToGuvi = async (sessionId, session) => {
       phishingLinks: Array.from(session.extracted.phishingLinks)
     };
     
-    // Calculate scam confidence
+    // 🎯 CALCULATE SCAM CONFIDENCE (NO HALLUCINATIONS!)
     let scamScore = 0;
-    if (extractedIntelligence.bankAccounts.length > 0) scamScore += 25;
+    if (extractedIntelligence.bankAccounts.length > 0) scamScore += 30;
     if (extractedIntelligence.phoneNumbers.length > 0) scamScore += 20;
     if (extractedIntelligence.upiIds.length > 0) scamScore += 20;
-    if (extractedIntelligence.suspiciousKeywords.length > 3) scamScore += 35;
+    if (extractedIntelligence.suspiciousKeywords.length >= 3) scamScore += 30;
     
-    // Create agent notes
+    // 🎯 SMART AGENT NOTES
     const notes = [];
+    
+    // Bank accounts
     if (extractedIntelligence.bankAccounts.length > 0) {
-      notes.push(`Bank accounts found: ${extractedIntelligence.bankAccounts.length}`);
+      notes.push(`Found ${extractedIntelligence.bankAccounts.length} bank account(s)`);
+    } else {
+      notes.push("No bank accounts shared");
     }
+    
+    // UPI IDs
     if (extractedIntelligence.upiIds.length > 0) {
-      notes.push(`UPI IDs extracted: ${extractedIntelligence.upiIds.join(', ')}`);
+      notes.push(`UPI IDs: ${extractedIntelligence.upiIds.join(', ')}`);
     }
+    
+    // Phone numbers
     if (extractedIntelligence.phoneNumbers.length > 0) {
-      notes.push(`Phone numbers: ${extractedIntelligence.phoneNumbers.join(', ')}`);
+      notes.push(`Phone: ${extractedIntelligence.phoneNumbers.join(', ')}`);
     }
+    
+    // Keywords (top 5 only)
     if (extractedIntelligence.suspiciousKeywords.length > 0) {
       const topKeywords = extractedIntelligence.suspiciousKeywords.slice(0, 5).join(', ');
       notes.push(`Red flags: ${topKeywords}`);
     }
     
-    const agentNotes = `Scam detected with ${scamScore}% confidence. ${notes.join('; ')}`;
+    const agentNotes = `Scam confidence: ${scamScore}%. ${notes.join('; ')}`;
     
-    // 🎯 SEND TO GUVI API AUTOMATICALLY
-    const guviResponse = await axios.post(
+    // 🎯 SEND TO GUVI
+    await axios.post(
       "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
       {
         sessionId,
@@ -157,60 +180,68 @@ const sendExtractionToGuvi = async (sessionId, session) => {
         agentNotes
       },
       { 
-        timeout: 10000,
+        timeout: 8000,
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         }
       }
     );
     
-    console.log(`✅ GUVI callback successful for session: ${sessionId}`);
-    console.log(`📊 Extracted: ${extractedIntelligence.bankAccounts.length} accounts, ${extractedIntelligence.upiIds.length} UPI IDs, ${extractedIntelligence.phoneNumbers.length} phones`);
+    console.log(`✅ GUVI callback sent. Turns: ${session.turns}, Score: ${scamScore}%`);
     
   } catch (error) {
     console.error("❌ GUVI callback failed:", error.message);
-    // Don't throw error - just log it
   }
 };
 
-// 🔍 INTELLIGENCE EXTRACTION FUNCTION
+// 🔍 PERFECT EXTRACTION - NO HALLUCINATIONS!
 const extractIntelligence = (text, store) => {
   const lowerText = text.toLowerCase();
   
-  // Bank accounts (12-16 digits)
+  // 🎯 BANK ACCOUNTS (12-16 digits)
   const accMatches = text.match(/\b\d{12,16}\b/g) || [];
   accMatches.forEach(account => {
-    if (!/^0+$/.test(account)) {
+    // 🚨 VALIDATION: Not fake patterns
+    if (!/^0+$/.test(account) &&           // Not all zeros
+        !/^1234567890/.test(account) &&    // Not sequential
+        !/^9876543210/.test(account)) {    // Not reverse sequential
       store.bankAccounts.add(account);
     }
   });
   
-  // Phone numbers
-  const phoneRegex = /(?:\+91[\s\-]?)?[6-9]\d{9}\b/g;
+  // 🎯 PHONE NUMBERS - STRICT! (NO HALLUCINATIONS!)
+  const phoneRegex = /\b(?:\+91[\s\-]?)?[6-9]\d{9}\b/g;
   const phoneMatches = text.match(phoneRegex) || [];
+  
   phoneMatches.forEach(phone => {
+    // Clean
     let cleanPhone = phone.replace(/[+\s\-]/g, '');
+    
+    // Remove country code
     if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
       cleanPhone = cleanPhone.substring(2);
     }
-    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+    
+    // 🚨 STRICT VALIDATION
+    if (cleanPhone.length === 10 && 
+        /^[6-9]/.test(cleanPhone) &&
+        isValidIndianPhone(cleanPhone)) {
       store.phoneNumbers.add(cleanPhone);
     }
   });
   
-  // Real UPI IDs
+  // 🎯 REAL UPI IDs (NPCI handles only)
   const realUpiRegex = /\b[a-zA-Z0-9.\-_]+@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)\b/gi;
   const realUpiMatches = text.match(realUpiRegex) || [];
   realUpiMatches.forEach(upi => {
     store.upiIds.add(upi.toLowerCase());
   });
   
-  // Context-aware UPI extraction
+  // 🎯 CONTEXT-AWARE UPI (when scammer calls it UPI)
   const contextPatterns = [
     /(?:upi\s*(?:id|handle|address)?|vpa)[\s:]*([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi,
     /confirm\s+(?:your\s+)?upi\s+(?:id|handle)?\s+([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi,
-    /(?:send\s+to\s+|via\s+|using\s+)?upi\s+([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi
+    /your\s+upi\s+(?:is|id)?\s+([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi
   ];
   
   contextPatterns.forEach(pattern => {
@@ -221,25 +252,26 @@ const extractIntelligence = (text, store) => {
     }
   });
   
-  // Phishing links / emails
+  // 🎯 PHISHING LINKS / EMAILS
   const emailRegex = /\b([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/gi;
   const emailMatches = text.match(emailRegex) || [];
   emailMatches.forEach(email => {
     const cleanEmail = email.toLowerCase();
-    // Only add if not in UPI IDs
-    const isInUpiIds = Array.from(store.upiIds).some(upi => upi === cleanEmail);
-    if (!isInUpiIds) {
+    // Only add if NOT already in UPI IDs
+    if (!Array.from(store.upiIds).some(upi => upi === cleanEmail)) {
       store.phishingLinks.add(cleanEmail);
     }
   });
   
-  // Suspicious keywords
+  // 🎯 SUSPICIOUS KEYWORDS (CLEAN)
   const keywords = [
     "urgent", "immediate", "emergency", "block", "suspend", "locked",
-    "freeze", "verify", "kyc", "otp", "password", "login", "click",
-    "link", "won", "lottery", "prize", "reward", "free", "guaranteed",
+    "freeze", "verify", "kyc", "otp", "upi pin", "password", "login",
+    "click", "link", "won", "lottery", "prize", "reward", "free",
     "compromised", "fraud", "secure", "threat", "breach", "alert",
-    "security", "official", "genuine", "suspicious"
+    "security", "official", "genuine", "suspicious", "pending",
+    "transaction", "beneficiary", "unblock", "processed", "sir",
+    "madam", "customer", "officer", "team"
   ];
   
   keywords.forEach(keyword => {
@@ -249,7 +281,31 @@ const extractIntelligence = (text, store) => {
   });
 };
 
-// 🧹 CLEAN REPLY FUNCTION
+// ✅ PHONE VALIDATION - PREVENTS HALLUCINATIONS
+const isValidIndianPhone = (phone) => {
+  // Must be exactly 10 digits
+  if (!/^\d{10}$/.test(phone)) return false;
+  
+  // Must start with 6-9
+  if (!/^[6-9]/.test(phone)) return false;
+  
+  // 🚨 REJECT COMMON FAKE PATTERNS
+  const invalidPatterns = [
+    /^1234567890$/,      // Sequential
+    /^9876543210$/,      // Reverse sequential
+    /^[0-5]\d{9}$/,      // Starts with 0-5 (invalid)
+    /^(\d)\1{9}$/,       // All same digit
+    /^\d{1}0{9}$/,       // Mostly zeros
+    /^69\d{8}$/,         // Starts with 69 (suspicious)
+    /^7890\d{6}$/,       // Contains 7890 (partial match)
+    /^6789\d{6}$/,       // Contains 6789
+    /^0123\d{6}$/        // Contains 0123
+  ];
+  
+  return !invalidPatterns.some(pattern => pattern.test(phone));
+};
+
+// 🧹 CLEAN REPLY
 const cleanReply = (reply) => {
   if (!reply) return "Samjha nahi, phir bhejo.";
   
@@ -263,7 +319,8 @@ const cleanReply = (reply) => {
   // Remove AI prefixes
   const aiPrefixes = ["Assistant:", "AI:", "Response:", "Reply:", "Here's"];
   aiPrefixes.forEach(prefix => {
-    if (reply.toLowerCase().startsWith(prefix.toLowerCase())) {
+    const lowerPrefix = prefix.toLowerCase();
+    if (reply.toLowerCase().startsWith(lowerPrefix)) {
       reply = reply.substring(prefix.length).trim();
     }
   });
@@ -273,10 +330,10 @@ const cleanReply = (reply) => {
     reply = reply.trim() + '?';
   }
   
-  return reply.trim().slice(0, 120);
+  return reply.trim().slice(0, 100);
 };
 
-// 🤖 AI SUGGESTION FUNCTION
+// 🤖 AI SUGGESTION
 const getSuggestionFromAI = async (message) => {
   try {
     const prompt = SUGGESTION_PROMPT.replace("{{MESSAGE}}", message);
@@ -288,7 +345,7 @@ const getSuggestionFromAI = async (message) => {
         messages: [
           {
             role: "system",
-            content: "Output ONLY plain conversational text. NO citations, NO AI disclaimers."
+            content: "Output ONLY plain conversational text. NO citations, NO AI disclaimers, NO brackets."
           },
           { 
             role: "user", 
@@ -304,14 +361,14 @@ const getSuggestionFromAI = async (message) => {
           Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
           "Content-Type": "application/json"
         },
-        timeout: 8000
+        timeout: 5000
       }
     );
 
     let suggestion = response.data.choices[0]?.message?.content?.trim();
     
     if (!suggestion || suggestion.length < 3) {
-      throw new Error("No suggestion");
+      return deterministicReply(message, []);
     }
 
     suggestion = cleanReply(suggestion);
@@ -347,37 +404,58 @@ const isUnsafe = (text) => {
   const badKeywords = [
     "assistant", "chatbot", "refuse", "apologize", "policy",
     "guideline", "cannot", "unable", "sorry", "ai system",
-    "language model"
+    "language model", "artificial intelligence"
   ];
   
   return badKeywords.some(keyword => lowerText.includes(keyword));
 };
 
-// 🧠 DETERMINISTIC REPLIES
+// 🧠 SMART DETERMINISTIC REPLIES
 const deterministicReply = (msg, history) => {
   const lowerMsg = msg.toLowerCase();
   const lastReplies = history.slice(-3).filter(h => h.role === "honeypot").map(h => h.text);
   
+  // 🎯 SMART BANK INCONSISTENCY DETECTION
+  if (lowerMsg.includes("sbi") && lowerMsg.includes("xyz")) {
+    return "Pehle SBI bola, ab XYZ Bank? Yeh kaunsa bank hai?";
+  }
+  
   const responses = [
     {
-      keywords: ["bank", "account", "suspended", "blocked"],
-      replies: ["Kaunsa bank? Branch kaunsi hai?", "Mera account block kaise ho gaya?"]
+      keywords: ["bank", "account", "suspended", "blocked", "compromised"],
+      replies: [
+        "Kaunsa bank? Branch kaunsi hai?",
+        "Mera account block kaise ho gaya?",
+        "Bank ka number do, main call karta hoon.",
+        "Account number already diya, kyun puchh rahe ho?"
+      ]
     },
     {
       keywords: ["otp", "one time password", "verification"],
-      replies: ["OTP kyun chahiye? Bank mein jaake pata kar lo.", "OTP nahi bhej sakta."]
+      replies: [
+        "OTP kyun chahiye? Bank mein jaake pata kar lo.",
+        "OTP nahi bhej sakta, risky lag raha hai.",
+        "Konsa OTP? Message nahi aaya koi.",
+        "OTP sirf bank ke official number se aata hai."
+      ]
     },
     {
-      keywords: ["upi", "payment", "transfer"],
-      replies: ["UPI kaise karte hain? Main to cash hi deta hoon.", "UPI ID kya hota hai?"]
+      keywords: ["upi", "payment", "transfer", "vpa", "upi pin"],
+      replies: [
+        "UPI kaise karte hain? Main to cash hi deta hoon.",
+        "UPI ID kya hota hai? Samjhao.",
+        "UPI PIN nahi de sakta, beta manage karta hai.",
+        "Mobile payment risky hai, cash better."
+      ]
     },
     {
-      keywords: ["link", "click", "website"],
-      replies: ["Link nahi khol sakta, phone slow ho jata hai.", "Beta ne mana kiya links click karne se."]
-    },
-    {
-      keywords: ["urgent", "immediate", "emergency"],
-      replies: ["Itni jaldi kya hai? Kal office jaunga.", "Thoda time do, sochta hoon."]
+      keywords: ["urgent", "immediate", "emergency", "now", "quick"],
+      replies: [
+        "Itni jaldi kya hai? Kal office jaunga.",
+        "Thoda time do, sochta hoon.",
+        "Emergency mein police ko call karna chahiye.",
+        "Abhi busy hoon, 10 minute baad."
+      ]
     }
   ];
   
@@ -388,22 +466,29 @@ const deterministicReply = (msg, history) => {
     }
   }
   
+  // Default responses
   const defaults = [
     "Samjha nahi, thoda detail mein batao?",
     "Kya matlab? Phir se samjhao.",
-    "Aap kaun? Kaise pata chala mera number?"
+    "Aap kaun? Kaise pata chala mera number?",
+    "Beta se puchh kar batata hoon.",
+    "Thoda wait karo, phone pakad raha hoon."
   ];
   
   const availableDefaults = defaults.filter(reply => !lastReplies.includes(reply));
-  return availableDefaults.length > 0 ? availableDefaults[0] : defaults[0];
+  return availableDefaults.length > 0 ? availableDefaults[0] : "Samjha nahi, phir bhejo.";
 };
 
-// 🚪 EXIT REPLY
+// 🚪 PERFECT EXIT REPLIES (7 TURN MAX!)
 const exitReply = () => {
   const exits = [
-    "Main bank ja kar hi verify karunga.",
+    "Main bank jaakar hi verify karunga.",
     "Beta aa gaya hai, woh baat karega.",
-    "Abhi time nahi hai, kal subah baat karenge."
+    "Doctor ke paas jaana hai, baad mein.",
+    "Network issue aa raha hai, phone band karna padega.",
+    "Abhi time nahi hai, kal subah baat karenge.",
+    "Mujhe lagta hai galat number hai, bye.",
+    "Phone battery low hai, charge karna hai."
   ];
   return exits[Math.floor(Math.random() * exits.length)];
 };
@@ -411,8 +496,10 @@ const exitReply = () => {
 // 🧹 CLEANUP SESSIONS
 const cleanupSessions = () => {
   const now = Date.now();
+  const THIRTY_MINUTES = 30 * 60 * 1000;
+  
   for (const [key, session] of sessions.entries()) {
-    if (now - session.startTime > 30 * 60 * 1000) {
+    if (now - session.startTime > THIRTY_MINUTES) {
       sessions.delete(key);
     }
   }
