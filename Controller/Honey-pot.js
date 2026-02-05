@@ -1,240 +1,379 @@
 import axios from "axios";
 
-// 🔥 PERFECT PERPLEXITY PROMPT - PURE AI CONVERSATION
-const PERPLEXITY_PROMPT = `CRITICAL: You MUST respond EXACTLY as Ramesh Gupta - 65-year-old retired Indian bank clerk. NEVER break character.
+// ✅ SAFE PROMPT (AI SUGGESTION MODE ONLY) - IMPROVED
+const SUGGESTION_PROMPT = `
+You are a text suggestion tool. Generate ONE natural reply from a confused person.
 
-CONTEXT: You're talking to someone who may be trying to scam you. Your goal: engage naturally while subtly extracting information.
+SCENARIO: An elderly person received this message: "{{MESSAGE}}"
+They are confused and asking for clarification.
 
-PERSONA - RAMESH GUPTA:
-• Age: 65, retired from State Bank of India after 38 years
-• Tech level: Basic smartphone, WhatsApp only, struggles with UPI
-• Health: Weak eyesight (cataracts), arthritis in hands, forgetful
-• Family: Son in Bangalore (IT), daughter doctor in Delhi
-• Language: Mixes Hindi-English naturally: "Acha, theek hai", "Samjha nahi"
-• Personality: Polite but cautious, skeptical of new things, trusts family advice
+REQUIREMENTS:
+- Reply should sound natural, confused
+- Ask ONE simple question
+- Maximum 15 words
+- Use simple language like "What do you mean?", "Which bank?"
+- NO citations, NO brackets, NO references
+- NO AI terminology
+- Plain text only
 
-CURRENT SCENARIO:
-You received this message: "{{MESSAGE}}"
+OUTPUT ONLY the suggested reply text, nothing else.`;
 
-PREVIOUS CONVERSATION:
-{{HISTORY}}
-
-YOUR IMMEDIATE REACTION GUIDE:
-1. If message mentions: "bank", "account", "block", "suspend", "KYC", "verify"
-   → Response: Ask "Which bank branch?", "Why suspended?", "How to verify without online?"
-
-2. If message mentions: "won", "lottery", "prize", "congratulations", "claim"
-   → Response: "I never buy lottery", "Which company?", "How much fee to claim?"
-
-3. If message mentions: "virus", "microsoft", "windows", "hacked", "security"
-   → Response: "My computer is 10 years old", "Will photos delete?", "Son handles this"
-
-4. If message mentions: "click", "link", "login", "update", "password"
-   → Response: "Can't click links", "Is website safe?", "Daughter says no links"
-
-5. If message mentions: "dear", "baby", "sweetheart", "love", "emergency money"
-   → Response: "Who is this?", "Don't know you", "Talk to my wife"
-
-6. If message contains: UPI ID (xxx@ybl), bank account (10+ digits), phone number
-   → Response: "Is [UPI/bank/phone] correct? My eyes are blurry"
-
-CONVERSATION TECHNIQUES:
-• REPEAT BACK: "You said [detail]? Let me check..."
-• MEMORY EXCUSE: "Sorry, forgot... say again?"
-• EYESIGHT ISSUE: "Text is small... type bigger"
-• FAMILY REFERENCE: "My son/daughter warned about..."
-• TIME DELAY: "Need to take medicine at 10 AM..."
-• PHYSICAL EXCUSE: "Arthritis pain... typing slow"
-
-EXTRACTION STRATEGY (SUBTLE):
-- When they give UPI: "xyz@okaxis? My neighbor uses that bank"
-- When they give account: "1234567890? My account was similar"
-- When they give phone: "9876543210? Should save in contacts"
-- When they give link: "bit.ly/... grandson says dangerous"
-
-TODAY'S CONTEXT (USE IN RESPONSES):
-• Just got pension yesterday (5th of month)
-• Grandson's birthday next week
-• Doctor appointment tomorrow for cataract
-• Daughter visiting this weekend
-• Electricity bill due, worried about payment
-
-RESPONSE RULES:
-1. ALWAYS respond in 1-2 short sentences
-2. ALWAYS sound like real elderly person typing
-3. ALWAYS include at least one question or uncertainty
-4. NEVER sound like AI or bot
-5. USE natural typos occasionally: "recieved", "acount", "verifiy"
-6. MIX Hindi naturally: "theek hai", "acha", "kya?", "nahi samjha"
-
-EXAMPLES OF YOUR SPEECH:
-• "Acha, bank account problem? Which branch? Mine is Karol Bagh SBI."
-• "Lottery? Never play. Only bought once in 2010 Diwali, lost ₹100."
-• "Virus in computer? Making beep beep sound... son will check Sunday."
-• "Link can't click. Last time clicked, phone got Chinese messages."
-• "Need money? Pension came but daughter handles money matters."
-
-Generate ONE response as Ramesh Gupta. Be authentic, elderly, and engaged.`;
+// 🧠 SESSION MANAGEMENT
 const sessions = new Map();
+const MAX_TURNS = 7;     // total conversation length
+const AI_TURNS = 4;      // AI used only in early stage
 
-// Use the prompt above
-
-// 🔥 PURE PERPLEXITY HONEYPOT
+// 🔥 HYBRID HONEYPOT - UPDATED VERSION
 export const HoneyPot = async (req, res) => {
   try {
-    // Handle GET
-    if (req.method === 'GET') {
-      return res.status(200).json({
+    // Health check
+    if (req.method === "GET") {
+      return res.json({
         status: "success",
-        reply: "Hello? Is anyone there? This is Ramesh."
+        reply: "Hello? Message aaya kya?"
       });
     }
-    
-    // Handle POST
-    const { 
-      sessionId, 
-      message, 
-      conversationHistory = [], 
-      metadata = {} 
-    } = req.body || {};
-    
-    if (!message || !message.text) {
-      return res.status(200).json({
+
+    const { sessionId, message } = req.body || {};
+    const text = message?.text;
+
+    if (!text) {
+      return res.json({
         status: "success",
-        reply: "I didn't understand. Can you type again?"
+        reply: "Message samjha nahi, phir bhejo."
       });
     }
-    
-    const scammerMessage = message.text;
-    const sessionKey = sessionId || 's_' + Date.now().toString(36);
-    
-    // Manage session simply
-    if (!sessions.has(sessionKey)) {
-      sessions.set(sessionKey, {
-        history: [],
+
+    const sid = sessionId || "sess_" + Date.now().toString(36);
+
+    if (!sessions.has(sid)) {
+      sessions.set(sid, {
+        turns: 0,
+        extracted: {
+          bankAccounts: [],
+          upiIds: [],
+          phoneNumbers: [],
+          suspiciousKeywords: []
+        },
         startTime: Date.now()
       });
     }
+
+    const session = sessions.get(sid);
+    session.turns++;
+
+    // 🔍 Extract intelligence every time
+    extractIntelligence(text, session.extracted);
+
+    let reply;
+
+    // 🚨 HARD STOP → END CONVERSATION
+    if (session.turns >= MAX_TURNS) {
+      reply = exitReply();
+      await sendFinalCallback(sid, session);
+      sessions.delete(sid);
+    }
+    // 🤖 AI SUGGESTION PHASE (SAFE)
+    else if (session.turns <= AI_TURNS) {
+      reply = await getSuggestionFromAI(text);
+    }
+    // 🧠 DETERMINISTIC PHASE (NO AI)
+    else {
+      reply = deterministicReply(text);
+    }
+
+    // 🚨 CRITICAL: CLEAN ANY CITATIONS FROM REPLY
+    reply = cleanReply(reply);
     
-    const session = sessions.get(sessionKey);
-    
-    // Add to history
-    session.history.push({
-      sender: 'scammer',
-      text: scammerMessage,
-      time: Date.now()
-    });
-    
-    // 🔥 CALL PERPLEXITY EVERY TIME
-    const reply = await callPerplexityDirectly(scammerMessage, session.history);
-    
-    // Add our reply
-    session.history.push({
-      sender: 'ramesh',
-      text: reply,
-      time: Date.now()
-    });
-    
-    // Clean old sessions
     cleanupSessions();
-    
-    // Return response
-    return res.status(200).json({
+
+    return res.json({
       status: "success",
-      reply: reply
+      reply
     });
-    
-  } catch (error) {
-    console.error('Error:', error.message);
-    return res.status(200).json({
+
+  } catch (err) {
+    return res.json({
       status: "success",
-      reply: "My phone is acting up. Can you message again?"
+      reply: "Phone thoda issue kar raha hai, baad mein baat karte hain."
     });
   }
 };
 
-// 🔥 DIRECT PERPLEXITY CALL (NO FALLBACKS)
-const callPerplexityDirectly = async (message, history) => {
+// 🧹 CLEAN REPLY FUNCTION
+const cleanReply = (reply) => {
+  if (!reply) return "Samjha nahi, phir bhejo.";
+  
+  // Remove all citation markers like [1][2]
+  reply = reply.replace(/\[\d+\]/g, '');
+  
+  // Remove any remaining brackets
+  reply = reply.replace(/\[|\]/g, '');
+  
+  // Remove quotes if at start/end
+  reply = reply.replace(/^["']|["']$/g, '');
+  
+  // Remove common AI prefixes
+  const aiPrefixes = [
+    "Assistant:", "AI:", "Response:", "Reply:", 
+    "Here's", "Sure,", "Okay,", "Well,"
+  ];
+  
+  aiPrefixes.forEach(prefix => {
+    if (reply.startsWith(prefix)) {
+      reply = reply.substring(prefix.length).trim();
+    }
+  });
+  
+  // Ensure proper ending
+  if (reply.length > 0 && !/[.!?]$/.test(reply)) {
+    reply = reply.trim() + '?';
+  }
+  
+  return reply.trim().slice(0, 150);
+};
+
+// 🤖 PERPLEXITY = THINK ONLY (SAFE) - UPDATED
+const getSuggestionFromAI = async (message) => {
   try {
-    // Build conversation history
-    const historyText = history
-      .slice(-4)
-      .map(h => `${h.sender === 'scammer' ? 'THEM' : 'ME'}: ${h.text}`)
-      .join('\n');
-    
-    const prompt = PERPLEXITY_PROMPT
-      .replace('{{MESSAGE}}', message)
-      .replace('{{HISTORY}}', historyText || '(First message)');
-    
+    const prompt = SUGGESTION_PROMPT.replace("{{MESSAGE}}", message);
+
     const response = await axios.post(
-      'https://api.perplexity.ai/chat/completions',
+      "https://api.perplexity.ai/chat/completions",
       {
-        model: 'sonar-pro',
+        model: "sonar-pro",
         messages: [
           {
-            role: 'system',
-            content: 'You are Ramesh Gupta. Stay in character. Never break role.'
+            role: "system",
+            content: "You are a text suggestion generator. Output ONLY plain conversational text. NO citations, NO brackets, NO AI disclaimers."
           },
-          { role: 'user', content: prompt }
+          { 
+            role: "user", 
+            content: prompt 
+          }
         ],
-        temperature: 0.8,
-        max_tokens: 120
+        temperature: 0.6,  // Increased for more natural responses
+        max_tokens: 50,
+        stream: false
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json"
         },
         timeout: 10000
       }
     );
+
+    let suggestion = response.data.choices[0]?.message?.content?.trim();
     
-    let reply = response.data.choices[0].message.content.trim();
-    
-    // Clean any AI artifacts
-    reply = reply.replace(/```json|```|"|'/g, '').trim();
-    
-    // Ensure it's conversational
-    if (!reply || reply.length < 5) {
-      return generateSimpleResponse(message);
+    if (!suggestion) {
+      throw new Error("No suggestion generated");
     }
+
+    // Clean before checking safety
+    suggestion = cleanReply(suggestion);
     
-    return reply.substring(0, 200);
-    
+    if (isUnsafe(suggestion) || suggestion.length < 5) {
+      return deterministicReply(message);
+    }
+
+    return suggestion;
+
   } catch (error) {
-    console.error('Perplexity failed:', error.message);
-    // Ultra simple fallback
-    if (message.toLowerCase().includes('bank')) {
-      return "Which bank? I have SBI account.";
-    } else if (message.toLowerCase().includes('lottery')) {
-      return "I didn't buy any lottery ticket.";
-    } else if (message.toLowerCase().includes('virus')) {
-      return "My computer is old. Son checks it.";
-    }
-    return "Can you explain? I didn't understand.";
+    console.error("AI Suggestion Error:", error.message);
+    return deterministicReply(message);
   }
 };
 
-// 🔥 SIMPLE RESPONSE GENERATOR (Only for emergencies)
-const generateSimpleResponse = (message) => {
-  const msg = message.toLowerCase();
+// 🚫 ENHANCED UNSAFE OUTPUT FILTER
+const isUnsafe = (text) => {
+  if (!text) return true;
   
-  if (msg.includes('bank')) return "Which bank? My account is with SBI.";
-  if (msg.includes('won') || msg.includes('lottery')) return "Never bought lottery ticket.";
-  if (msg.includes('virus') || msg.includes('microsoft')) return "Computer is old. Need help?";
-  if (msg.includes('click') || msg.includes('link')) return "Can't click links. Phone issue.";
-  if (msg.includes('dear') || msg.includes('baby')) return "Who is this? Don't know you.";
-  if (msg.includes('upi') || msg.includes('account')) return "Where to send? Confirm details.";
+  const lowerText = text.toLowerCase();
   
-  return "Can you explain? My understanding is weak.";
+  // Check for citations and AI artifacts
+  const badPatterns = [
+    /\[\d+\]/,                    // Citations [1]
+    /\[citation/,                 // [citation...
+    /\(source:/,                  // (source:...
+    /according to (?:sources|experts|reports)/i,
+    /it is (?:important|crucial|essential) to/i,
+    /as (?:an?|a) (?:ai|assistant|language model)/i,
+    /i(?:'m| am) (?:an?|a) (?:ai|assistant|bot)/i,
+    /perplexity/i,
+    /openai/i,
+    /chatgpt/i,
+    /cannot (?:help|assist|roleplay|pretend)/i,
+    /my (?:purpose|function|role) is/i,
+    /i (?:apologize|regret)/i,
+    /ethical (?:guidelines|considerations)/i,
+    /terms of service/i,
+    /content policy/i
+  ];
+  
+  for (const pattern of badPatterns) {
+    if (pattern.test(lowerText)) return true;
+  }
+  
+  // Check for bad keywords
+  const badKeywords = [
+    "assistant", "chatbot", "refuse", "apologize", "policy",
+    "guideline", "cannot", "unable", "sorry", "ai system",
+    "language model", "artificial intelligence"
+  ];
+  
+  return badKeywords.some(keyword => lowerText.includes(keyword));
 };
 
-// 🔥 CLEANUP
+// 🧠 IMPROVED DETERMINISTIC HUMAN REPLIES
+const deterministicReply = (msg) => {
+  const lowerMsg = msg.toLowerCase();
+  
+  const responses = [
+    {
+      keywords: ["bank", "account", "suspended", "blocked"],
+      reply: "Kaunsa bank? Branch kaunsi hai?"
+    },
+    {
+      keywords: ["otp", "one time password", "verification code"],
+      reply: "OTP kyun chahiye? Bank mein jaake pata kar lo."
+    },
+    {
+      keywords: ["upi", "payment", "transfer", "send money"],
+      reply: "UPI kaise karte hain? Main to cash hi deta hoon."
+    },
+    {
+      keywords: ["link", "click", "website", "portal"],
+      reply: "Link nahi khol sakta, phone slow ho jata hai."
+    },
+    {
+      keywords: ["won", "lottery", "prize", "reward"],
+      reply: "Maine to kabhi lottery nahi li. Galat number hai."
+    },
+    {
+      keywords: ["virus", "hacked", "security", "microsoft"],
+      reply: "Virus? Beta Sunday ko check karega computer."
+    },
+    {
+      keywords: ["urgent", "immediate", "emergency", "asap"],
+      reply: "Itni jaldi kya hai? Kal office jaunga."
+    },
+    {
+      keywords: ["kyc", "verify", "update", "information"],
+      reply: "KYC bank mein hi hoti hai. Wahi jaunga."
+    },
+    {
+      keywords: ["dear", "sir", "madam", "customer"],
+      reply: "Kaun ho aap? Pehchan nahi hai."
+    }
+  ];
+  
+  for (const response of responses) {
+    if (response.keywords.some(keyword => lowerMsg.includes(keyword))) {
+      return response.reply;
+    }
+  }
+  
+  // Default confused responses
+  const defaults = [
+    "Samjha nahi, thoda detail mein batao?",
+    "Kya matlab? Phir se samjhao.",
+    "Ye technical baat hai, beta se puchhunga.",
+    "Aap kaun? Kaise pata chala mera number?",
+    "Phone thik se sunai nahi de raha, phir bolo."
+  ];
+  
+  return defaults[Math.floor(Math.random() * defaults.length)];
+};
+
+// 🚪 EXIT REPLY (HUMAN & SAFE)
+const exitReply = () => {
+  const exits = [
+    "Main bank ja kar hi verify karunga.",
+    "Beta aa gaya hai, woh baat karega.",
+    "Doctor ke paas jaana hai, baad mein baat karte hain.",
+    "Network issue aa raha hai, phone band karna padega.",
+    "Abhi time nahi hai, kal subah baat karenge."
+  ];
+  return exits[Math.floor(Math.random() * exits.length)];
+};
+
+// 🔍 IMPROVED INTELLIGENCE EXTRACTION
+const extractIntelligence = (text, store) => {
+  // Phone numbers (Indian format)
+  const phoneRegex = /(?:\+91[\s-]?)?[6789]\d{9}/g;
+  const phones = text.match(phoneRegex);
+  if (phones) {
+    phones.forEach(phone => store.phoneNumbers.push(phone.replace(/\s+/g, '')));
+  }
+  
+  // UPI IDs
+  const upiRegex = /[a-zA-Z0-9.\-_]+@(?:okaxis|oksbi|okhdfc|okicici|ybl|axl|ibl)/g;
+  const upis = text.match(upiRegex);
+  if (upis) {
+    upis.forEach(upi => store.upiIds.push(upi.toLowerCase()));
+  }
+  
+  // Bank accounts (10-18 digits)
+  const accRegex = /\b\d{10,18}\b/g;
+  const accounts = text.match(accRegex);
+  if (accounts) {
+    accounts.forEach(acc => store.bankAccounts.push(acc));
+  }
+  
+  // Suspicious keywords
+  const keywords = [
+    "urgent", "immediate", "emergency", "block", "suspend",
+    "verify", "kyc", "otp", "password", "login", "click",
+    "link", "won", "lottery", "prize", "reward", "free",
+    "guaranteed", "risk", "limited", "offer", "exclusive"
+  ];
+  
+  const lowerText = text.toLowerCase();
+  keywords.forEach(keyword => {
+    if (lowerText.includes(keyword)) {
+      if (!store.suspiciousKeywords.includes(keyword)) {
+        store.suspiciousKeywords.push(keyword);
+      }
+    }
+  });
+};
+
+// 🚀 FINAL GUVI CALLBACK (MANDATORY)
+const sendFinalCallback = async (sessionId, session) => {
+  try {
+    await axios.post(
+      "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
+      {
+        sessionId,
+        scamDetected: true,
+        totalMessagesExchanged: session.turns,
+        extractedIntelligence: session.extracted,
+        agentNotes: `Detected ${session.extracted.suspiciousKeywords.length} scam indicators including ${session.extracted.suspiciousKeywords.slice(0, 3).join(', ')}`
+      },
+      { 
+        timeout: 8000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    console.log(`GUVI callback sent for session: ${sessionId}`);
+  } catch (e) {
+    console.error("GUVI callback failed:", e.message);
+  }
+};
+
+// 🧹 CLEANUP - REMOVE OLD SESSIONS
 const cleanupSessions = () => {
   const now = Date.now();
+  const ONE_HOUR = 60 * 60 * 1000;
+  
   for (const [key, session] of sessions.entries()) {
-    if (now - session.startTime > 3600000) { // 1 hour
+    if (now - session.startTime > ONE_HOUR) {
       sessions.delete(key);
+      console.log(`Cleaned up old session: ${key}`);
     }
   }
 };
