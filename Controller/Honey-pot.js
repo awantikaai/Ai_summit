@@ -543,8 +543,7 @@ const getSuggestionFromAI = async (message) => {
     return deterministicReply(message, []);
   }
 };
-
-// 🚀 ENHANCED GUVI EXTRACTION WITH AI ANALYSIS
+// 🚀 SIMPLIFIED GUVI REPORTING
 const sendEnhancedExtractionToGuvi = async (sessionId, session) => {
   try {
     // Final AI analysis of entire conversation
@@ -560,75 +559,62 @@ const sendEnhancedExtractionToGuvi = async (sessionId, session) => {
       personalInfo: Array.from(session.extracted.personalInfo)
     };
     
-    // 🎯 ENHANCED SCAM CONFIDENCE CALCULATION
-    let scamScore = calculateScamScore(extractedIntelligence, session);
+    // 🎯 SIMPLE SCAM SCORE CALCULATION
+    let scamScore = 0;
+    if (extractedIntelligence.bankAccounts.length > 0) scamScore += 30;
+    if (extractedIntelligence.phoneNumbers.length > 0) scamScore += 20;
+    if (extractedIntelligence.upiIds.length > 0) scamScore += 20;
+    if (extractedIntelligence.suspiciousKeywords.length >= 3) scamScore += 30;
+    scamScore = Math.min(scamScore, 100);
     
-    // Combine AI analysis with extracted data
-    if (aiAnalysis.scamType) {
-      extractedIntelligence.scamType = aiAnalysis.scamType;
-    }
-    
-    if (aiAnalysis.techniques && aiAnalysis.techniques.length > 0) {
-      extractedIntelligence.scamTechniques = aiAnalysis.techniques;
-    }
-    
-    // 🎯 DETAILED AGENT NOTES WITH AI INSIGHTS
-    const notes = [];
+    // 🎯 SIMPLE AGENT NOTES (ONE LINE SUMMARY)
+    const parts = [];
     
     // Bank accounts
     if (extractedIntelligence.bankAccounts.length > 0) {
-      const accounts = extractedIntelligence.bankAccounts.slice(0, 3);
-      notes.push(`Bank accounts detected: ${accounts.join(', ')}${extractedIntelligence.bankAccounts.length > 3 ? '...' : ''}`);
+      const count = extractedIntelligence.bankAccounts.length;
+      parts.push(`${count} bank account${count > 1 ? 's' : ''}`);
     }
     
     // Phone numbers
     if (extractedIntelligence.phoneNumbers.length > 0) {
-      const formattedNumbers = extractedIntelligence.phoneNumbers
-        .slice(0, 3)
-        .map(num => `+91-${num.slice(0,5)}-${num.slice(5)}`);
-      notes.push(`Contact numbers: ${formattedNumbers.join(', ')}`);
+      const count = extractedIntelligence.phoneNumbers.length;
+      parts.push(`${count} phone number${count > 1 ? 's' : ''}`);
     }
     
-    // UPI analysis
+    // UPI IDs
     if (extractedIntelligence.upiIds.length > 0) {
-      const official = extractedIntelligence.upiIds.filter(id => 
-        /@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/i.test(id)
-      );
-      const fake = extractedIntelligence.upiIds.filter(id => 
-        !/@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/i.test(id)
-      );
-      
-      if (official.length > 0) notes.push(`Official UPI IDs: ${official.slice(0, 2).join(', ')}`);
-      if (fake.length > 0) notes.push(`Suspicious UPI IDs: ${fake.slice(0, 2).join(', ')}`);
+      const count = extractedIntelligence.upiIds.length;
+      parts.push(`${count} UPI ID${count > 1 ? 's' : ''}`);
     }
     
-    // Personal info
-    if (extractedIntelligence.personalInfo.length > 0) {
-      notes.push(`Personal info requested: ${extractedIntelligence.personalInfo.length} items`);
+    // Keywords
+    if (extractedIntelligence.suspiciousKeywords.length > 0) {
+      const count = extractedIntelligence.suspiciousKeywords.length;
+      parts.push(`${count} red flag${count > 1 ? 's' : ''}`);
     }
     
-    // AI insights
+    // Build simple summary
+    let agentNotes = "Scam detected: ";
+    
+    if (parts.length > 0) {
+      agentNotes += parts.join(", ");
+    } else {
+      agentNotes += "No specific data extracted";
+    }
+    
+    // Add scam type if available
     if (aiAnalysis.scamType) {
-      notes.push(`AI-detected scam type: ${aiAnalysis.scamType}`);
+      agentNotes += ` | Type: ${aiAnalysis.scamType}`;
     }
     
-    if (aiAnalysis.riskLevel) {
-      notes.push(`AI risk assessment: ${aiAnalysis.riskLevel}`);
+    // Add confidence and turns
+    agentNotes += ` | Confidence: ${scamScore}% | Turns: ${session.turns}`;
+    
+    // Add AI insights if available and simple
+    if (aiAnalysis.riskLevel && ['High', 'Critical'].includes(aiAnalysis.riskLevel)) {
+      agentNotes += ` | Risk: ${aiAnalysis.riskLevel}`;
     }
-    
-    // Conversation metrics
-    notes.push(`Conversation length: ${session.turns} turns`);
-    notes.push(`Extraction confidence: ${scamScore}%`);
-    
-    const agentNotes = `🔍 HONEYPOT INTELLIGENCE REPORT\n` +
-                      `==============================\n` +
-                      `${notes.join('\n• ')}\n` +
-                      `\n📊 EXTRACTION SUMMARY:\n` +
-                      `• Bank Accounts: ${extractedIntelligence.bankAccounts.length}\n` +
-                      `• Phone Numbers: ${extractedIntelligence.phoneNumbers.length}\n` +
-                      `• UPI IDs: ${extractedIntelligence.upiIds.length}\n` +
-                      `• Suspicious Keywords: ${extractedIntelligence.suspiciousKeywords.length}\n` +
-                      `• Phishing Links: ${extractedIntelligence.phishingLinks.length}`;
     
     // 🎯 SEND TO GUVI
     await axios.post(
@@ -641,14 +627,14 @@ const sendEnhancedExtractionToGuvi = async (sessionId, session) => {
         agentNotes
       },
       { 
-        timeout: 10000, // Increased timeout
+        timeout: 8000,
         headers: {
           'Content-Type': 'application/json'
         }
       }
     );
     
-    console.log(`✅ ENHANCED GUVI callback sent. Session: ${sessionId}, Turns: ${session.turns}, Score: ${scamScore}%`);
+    console.log(`✅ GUVI callback sent: ${agentNotes}`);
     
   } catch (error) {
     console.error("❌ GUVI callback failed:", error.message);
