@@ -128,8 +128,7 @@ export const HoneyPot = async (req, res) => {
   try {
     // 🔴 CRITICAL FIX: Handle GET requests (for tester validation)
     if (req.method === 'GET') {
-      console.log("🔍 GET request from tester - returning validation response");
-      
+
       // Log the request for analytics
       const logData = {
         method: 'GET',
@@ -287,17 +286,10 @@ export const HoneyPot = async (req, res) => {
         message: "<next_scammer_message>"
       }
     };
-    
-    // 🔄 5. CLEANUP OLD SESSIONS
+ 
     cleanupOldSessions();
     
-    // Log successful interaction
-    console.log("✅ Honeypot Interaction:", {
-      sessionId: session.sessionId,
-      messageLength: message.length,
-      isScam: aiResponse.analysis.is_scam,
-      scamType: aiResponse.analysis.scam_type
-    });
+
     
     return res.status(200).json(response);
     
