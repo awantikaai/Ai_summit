@@ -71,7 +71,7 @@ export const HoneyPot = async (req, res) => {
     session.turns++;
     session.history.push({ role: "scammer", text: text });
 
-    // 🔍 EXTRACT INTELLIGENCE (NO HALLUCINATIONS!)
+    // 🔍 EXTRACT INTELLIGENCE (FIXED - WORKS NOW!)
     extractIntelligence(text, session.extracted);
 
     let reply;
@@ -115,6 +115,7 @@ export const HoneyPot = async (req, res) => {
     });
 
   } catch (err) {
+    console.error("Honeypot error:", err.message);
     return res.json({
       status: "success",
       reply: "Phone thoda issue kar raha hai, baad mein baat karte hain."
@@ -134,7 +135,7 @@ const sendExtractionToGuvi = async (sessionId, session) => {
       phishingLinks: Array.from(session.extracted.phishingLinks)
     };
     
-    // 🎯 CALCULATE SCAM CONFIDENCE (NO HALLUCINATIONS!)
+    // 🎯 CALCULATE SCAM CONFIDENCE
     let scamScore = 0;
     if (extractedIntelligence.bankAccounts.length > 0) scamScore += 30;
     if (extractedIntelligence.phoneNumbers.length > 0) scamScore += 20;
@@ -147,8 +148,6 @@ const sendExtractionToGuvi = async (sessionId, session) => {
     // Bank accounts
     if (extractedIntelligence.bankAccounts.length > 0) {
       notes.push(`Found ${extractedIntelligence.bankAccounts.length} bank account(s)`);
-    } else {
-      notes.push("No bank accounts shared");
     }
     
     // UPI IDs
@@ -194,54 +193,71 @@ const sendExtractionToGuvi = async (sessionId, session) => {
   }
 };
 
-// 🔍 PERFECT EXTRACTION - NO HALLUCINATIONS!
+// 🔍 FIXED EXTRACTION FUNCTION - ACTUALLY WORKS!
 const extractIntelligence = (text, store) => {
   const lowerText = text.toLowerCase();
   
-  // 🎯 BANK ACCOUNTS (12-16 digits)
-  const accMatches = text.match(/\b\d{12,16}\b/g) || [];
-  accMatches.forEach(account => {
-    // 🚨 VALIDATION: Not fake patterns
-    if (!/^0+$/.test(account) &&           // Not all zeros
-        !/^1234567890/.test(account) &&    // Not sequential
-        !/^9876543210/.test(account)) {    // Not reverse sequential
+  // 🎯 1. BANK ACCOUNTS - SIMPLE & EFFECTIVE
+  // Match any 12-16 digit number
+  const accountPattern = /\d{12,16}/g;
+  const accounts = text.match(accountPattern) || [];
+  
+  accounts.forEach(account => {
+    if (account.length >= 12 && account.length <= 16) {
       store.bankAccounts.add(account);
     }
   });
   
-  // 🎯 PHONE NUMBERS - STRICT! (NO HALLUCINATIONS!)
-  const phoneRegex = /\b(?:\+91[\s\-]?)?[6-9]\d{9}\b/g;
-  const phoneMatches = text.match(phoneRegex) || [];
+  // Also look for "account number X" pattern
+  const accountContextPattern = /account\s*number\s*[:=]?\s*(\d{12,16})/gi;
+  let accMatch;
+  while ((accMatch = accountContextPattern.exec(text)) !== null) {
+    store.bankAccounts.add(accMatch[1]);
+  }
   
-  phoneMatches.forEach(phone => {
-    // Clean
-    let cleanPhone = phone.replace(/[+\s\-]/g, '');
-    
-    // Remove country code
-    if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
-      cleanPhone = cleanPhone.substring(2);
-    }
-    
-    // 🚨 STRICT VALIDATION
-    if (cleanPhone.length === 10 && 
-        /^[6-9]/.test(cleanPhone) &&
-        isValidIndianPhone(cleanPhone)) {
-      store.phoneNumbers.add(cleanPhone);
+  // 🎯 2. PHONE NUMBERS - FIXED! ACTUALLY EXTRACTS NUMBERS
+  // Method 1: Find all 10-digit numbers starting with 6-9
+  const allNumbers = text.match(/\d+/g) || [];
+  allNumbers.forEach(num => {
+    if (num.length === 10 && /^[6-9]/.test(num)) {
+      store.phoneNumbers.add(num);
     }
   });
   
-  // 🎯 REAL UPI IDs (NPCI handles only)
-  const realUpiRegex = /\b[a-zA-Z0-9.\-_]+@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)\b/gi;
-  const realUpiMatches = text.match(realUpiRegex) || [];
-  realUpiMatches.forEach(upi => {
+  // Method 2: Match +91-9876543210 format
+  const plus91Pattern = /\+91[-\s]?\d{10}/g;
+  const plus91Matches = text.match(plus91Pattern) || [];
+  plus91Matches.forEach(num => {
+    const clean = num.replace(/[+\-\s]/g, '');
+    if (clean.startsWith('91') && clean.length === 12) {
+      const phone = clean.substring(2);
+      if (phone.length === 10 && /^[6-9]/.test(phone)) {
+        store.phoneNumbers.add(phone);
+      }
+    }
+  });
+  
+  // Method 3: Match patterns like "98765-43210"
+  const hyphenPattern = /[6-9]\d{2}[-]?\d{3}[-]?\d{4}/g;
+  const hyphenMatches = text.match(hyphenPattern) || [];
+  hyphenMatches.forEach(num => {
+    const phone = num.replace(/-/g, '');
+    if (phone.length === 10 && /^[6-9]/.test(phone)) {
+      store.phoneNumbers.add(phone);
+    }
+  });
+  
+  // 🎯 3. UPI IDs - REAL NPCI HANDLES
+  const upiPattern = /[\w.\-]+@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/gi;
+  const upis = text.match(upiPattern) || [];
+  upis.forEach(upi => {
     store.upiIds.add(upi.toLowerCase());
   });
   
-  // 🎯 CONTEXT-AWARE UPI (when scammer calls it UPI)
+  // 🎯 4. CONTEXT-AWARE UPI (when scammer calls something UPI)
   const contextPatterns = [
     /(?:upi\s*(?:id|handle|address)?|vpa)[\s:]*([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi,
-    /confirm\s+(?:your\s+)?upi\s+(?:id|handle)?\s+([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi,
-    /your\s+upi\s+(?:is|id)?\s+([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi
+    /confirm\s+(?:your\s+)?upi\s+(?:id|handle)?\s+([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi
   ];
   
   contextPatterns.forEach(pattern => {
@@ -252,26 +268,28 @@ const extractIntelligence = (text, store) => {
     }
   });
   
-  // 🎯 PHISHING LINKS / EMAILS
-  const emailRegex = /\b([a-zA-Z0-9.\-_]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/gi;
-  const emailMatches = text.match(emailRegex) || [];
-  emailMatches.forEach(email => {
-    const cleanEmail = email.toLowerCase();
-    // Only add if NOT already in UPI IDs
-    if (!Array.from(store.upiIds).some(upi => upi === cleanEmail)) {
-      store.phishingLinks.add(cleanEmail);
+  // 🎯 5. PHISHING LINKS / EMAILS
+  const emailPattern = /[\w.\-]+@[\w.\-]+\.[a-z]{2,}/gi;
+  const emails = text.match(emailPattern) || [];
+  emails.forEach(email => {
+    const lowerEmail = email.toLowerCase();
+    // Only add to phishingLinks if not a UPI
+    const isUpi = /@(okaxis|oksbi|okhdfc|okicici|ybl|paytm|axl|ibl)/.test(lowerEmail);
+    if (!isUpi) {
+      store.phishingLinks.add(lowerEmail);
     }
   });
   
-  // 🎯 SUSPICIOUS KEYWORDS (CLEAN)
+  // 🎯 6. SUSPICIOUS KEYWORDS - EXPANDED
   const keywords = [
     "urgent", "immediate", "emergency", "block", "suspend", "locked",
-    "freeze", "verify", "kyc", "otp", "upi pin", "password", "login",
-    "click", "link", "won", "lottery", "prize", "reward", "free",
-    "compromised", "fraud", "secure", "threat", "breach", "alert",
-    "security", "official", "genuine", "suspicious", "pending",
-    "transaction", "beneficiary", "unblock", "processed", "sir",
-    "madam", "customer", "officer", "team"
+    "freeze", "verify", "kyc", "otp", "upi pin", "password", "pin",
+    "compromised", "fraud", "hack", "hacked", "security", "alert",
+    "team", "officer", "department", "sir", "madam", "customer",
+    "chala jayega", "paise", "paisa", "money", "transaction",
+    "transfer", "send", "payment", "beneficiary", "unblock",
+    "turant", "abhi", "now", "quick", "fast", "threat", "risk",
+    "danger", "lost", "stolen", "gone", "disappear"
   ];
   
   keywords.forEach(keyword => {
@@ -279,30 +297,6 @@ const extractIntelligence = (text, store) => {
       store.suspiciousKeywords.add(keyword);
     }
   });
-};
-
-// ✅ PHONE VALIDATION - PREVENTS HALLUCINATIONS
-const isValidIndianPhone = (phone) => {
-  // Must be exactly 10 digits
-  if (!/^\d{10}$/.test(phone)) return false;
-  
-  // Must start with 6-9
-  if (!/^[6-9]/.test(phone)) return false;
-  
-  // 🚨 REJECT COMMON FAKE PATTERNS
-  const invalidPatterns = [
-    /^1234567890$/,      // Sequential
-    /^9876543210$/,      // Reverse sequential
-    /^[0-5]\d{9}$/,      // Starts with 0-5 (invalid)
-    /^(\d)\1{9}$/,       // All same digit
-    /^\d{1}0{9}$/,       // Mostly zeros
-    /^69\d{8}$/,         // Starts with 69 (suspicious)
-    /^7890\d{6}$/,       // Contains 7890 (partial match)
-    /^6789\d{6}$/,       // Contains 6789
-    /^0123\d{6}$/        // Contains 0123
-  ];
-  
-  return !invalidPatterns.some(pattern => pattern.test(phone));
 };
 
 // 🧹 CLEAN REPLY
@@ -380,6 +374,7 @@ const getSuggestionFromAI = async (message) => {
     return suggestion;
 
   } catch (error) {
+    console.error("AI Suggestion Error:", error.message);
     return deterministicReply(message, []);
   }
 };
@@ -422,7 +417,7 @@ const deterministicReply = (msg, history) => {
   
   const responses = [
     {
-      keywords: ["bank", "account", "suspended", "blocked", "compromised"],
+      keywords: ["bank", "account", "suspended", "blocked", "compromised", "freeze"],
       replies: [
         "Kaunsa bank? Branch kaunsi hai?",
         "Mera account block kaise ho gaya?",
@@ -431,7 +426,7 @@ const deterministicReply = (msg, history) => {
       ]
     },
     {
-      keywords: ["otp", "one time password", "verification"],
+      keywords: ["otp", "one time password", "verification code", "6 digit"],
       replies: [
         "OTP kyun chahiye? Bank mein jaake pata kar lo.",
         "OTP nahi bhej sakta, risky lag raha hai.",
@@ -440,7 +435,7 @@ const deterministicReply = (msg, history) => {
       ]
     },
     {
-      keywords: ["upi", "payment", "transfer", "vpa", "upi pin"],
+      keywords: ["upi", "payment", "transfer", "vpa", "upi pin", "mpin"],
       replies: [
         "UPI kaise karte hain? Main to cash hi deta hoon.",
         "UPI ID kya hota hai? Samjhao.",
@@ -449,12 +444,21 @@ const deterministicReply = (msg, history) => {
       ]
     },
     {
-      keywords: ["urgent", "immediate", "emergency", "now", "quick"],
+      keywords: ["urgent", "immediate", "emergency", "now", "quick", "turant", "abhi"],
       replies: [
         "Itni jaldi kya hai? Kal office jaunga.",
         "Thoda time do, sochta hoon.",
         "Emergency mein police ko call karna chahiye.",
         "Abhi busy hoon, 10 minute baad."
+      ]
+    },
+    {
+      keywords: ["fraud", "team", "officer", "security", "department"],
+      replies: [
+        "Kaun ho aap? Pehchan nahi hai.",
+        "Aapka ID card bhejo pehle.",
+        "Official proof dikhao tab baat karenge.",
+        "Maine pehle kabhi aapka call nahi liya."
       ]
     }
   ];
@@ -472,7 +476,10 @@ const deterministicReply = (msg, history) => {
     "Kya matlab? Phir se samjhao.",
     "Aap kaun? Kaise pata chala mera number?",
     "Beta se puchh kar batata hoon.",
-    "Thoda wait karo, phone pakad raha hoon."
+    "Thoda wait karo, phone pakad raha hoon.",
+    "Ye technical baat hai, main nahi samjhta.",
+    "Mujhe lagta hai galat number hai.",
+    "Phone thik se sunai nahi de raha, phir bolo."
   ];
   
   const availableDefaults = defaults.filter(reply => !lastReplies.includes(reply));
