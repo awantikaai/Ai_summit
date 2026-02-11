@@ -256,12 +256,10 @@ const regexExtractIntelligence = (text) => {
       }
     });
   });
-  
-  // 🎯 4. PERSONAL INFO
   const personalPatterns = [
-    /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,  // Aadhar-like
-    /[A-Z]{5}\d{4}[A-Z]{1}/gi,           // PAN
-    /\b\d{16}\b/g,                        // Credit/Debit card
+    /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, 
+    /[A-Z]{5}\d{4}[A-Z]{1}/gi,           
+    /\b\d{16}\b/g,                        
     /cvv\s*[:=]?\s*(\d{3})/gi,
     /expir(?:y|ation)\s*(?:date)?\s*[:=]?\s*(\d{2}\/\d{2,4})/gi
   ];
@@ -271,7 +269,6 @@ const regexExtractIntelligence = (text) => {
     matches.forEach(info => results.personalInfo.push(info));
   });
   
-  // 🎯 5. PHISHING LINKS & EMAILS
   const linkPatterns = [
     /https?:\/\/[^\s]+/gi,
     /\b[\w.\-]+@[\w.\-]+\.[a-z]{2,}\b/gi,
@@ -291,7 +288,6 @@ const regexExtractIntelligence = (text) => {
     });
   });
   
-  // 🎯 6. SUSPICIOUS KEYWORDS - EXPANDED LIST
   const scamKeywords = {
     urgency: ["urgent", "emergency", "immediate", "now", "quick", "fast", "asap", "turant", "abhi", "jaldi", "instantly", "right now"],
     threat: ["block", "suspend", "freeze", "locked", "compromised", "hacked", "fraud", "scam", "theft", "stolen", "lost", "gone"],
@@ -303,7 +299,6 @@ const regexExtractIntelligence = (text) => {
     personal: ["aadhar", "pan", "document", "details", "information", "personal", "private", "confidential", "sensitive"]
   };
   
-  // Check each category
   Object.values(scamKeywords).flat().forEach(keyword => {
     if (lowerText.includes(keyword)) {
       results.keywords.push(keyword);
@@ -313,7 +308,6 @@ const regexExtractIntelligence = (text) => {
   return results;
 };
 
-// 🧠 AI ENHANCED EXTRACTION
 const aiExtractIntelligence = async (text) => {
   try {
     const extractionPrompt = `Extract scam-related information from this message:
