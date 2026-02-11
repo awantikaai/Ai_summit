@@ -1,5 +1,6 @@
-// controllers/honeypotController.js - HINGLISH CHAMPIONSHIP EDITION
-// Speaks natural Hindi-English mix, never detects, always confused human
+// controllers/honeypotController.js - HYBRID HINGLISH CHAMPIONSHIP EDITION
+// Deterministic core + Perplexity AI for subtle social engineering
+// 100% natural Hinglish, zero detection phrases, never repeats
 
 import axios from 'axios';
 
@@ -15,11 +16,22 @@ const CONFIG = {
   SCAM_THRESHOLD: 40,
   MIN_TURNS: 8,
   MAX_TURNS: 14,
-  CALLBACK_URL: 'https://hackathon.guvi.in/api/updateHoneyPotFinalResult'
+  CALLBACK_URL: 'https://hackathon.guvi.in/api/updateHoneyPotFinalResult',
+  
+  // ============ PERPLEXITY AI CONFIG ============
+  USE_PERPLEXITY: true,              // Set to false for pure deterministic
+  PERPLEXITY_API_KEY: 'YOUR_API_KEY_HERE', // Add your Perplexity API key
+  PERPLEXITY_URL: 'https://api.perplexity.ai/chat/completions',
+  PERPLEXITY_TIMEOUT: 3000,
+  
+  // When to trigger Perplexity (low-signal social engineering)
+  PERPLEXITY_TRIGGER_RISK_MIN: 20,
+  PERPLEXITY_TRIGGER_RISK_MAX: 45,
+  PERPLEXITY_TRIGGER_TURNS_MAX: 4   // Only use in early turns
 };
 
 // ==============================================
-// COMPREHENSIVE HINGLISH PATTERNS
+// COMPREHENSIVE HINGLISH PATTERNS - FIXED UPI
 // ==============================================
 const PATTERNS = {
   // Credential harvesting - HINGLISH
@@ -33,9 +45,11 @@ const PATTERNS = {
   account: /\b(?:\d{9,18}|\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b/,
   account_number: /\b(?:account|खाता|अकाउंट|खाता\s*नंबर)\s*(?:no|number|#)?\s*[:.]?\s*(\d{9,18}|\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})/i,
   
-  // Payment requests
-  upi: /\b(?:upi|gpay|google\s*pay|phonepe|paytm|amazon\s*pay|bh?im|भीम)\b/i,
-  upiId: /[\w.\-]+@(?:ybl|ok\w+|ibl|paytm|axl|sbi|hdfc|icici|yesbank|unionbank|pnb|canara|kotak)/i,
+  // ============ FIXED: UPI PATTERNS - MATCHES ANY FORMAT ============
+  upi: /\b(?:upi|gpay|google\s*pay|phonepe|paytm|amazon\s*pay|bh?im|भीम|UPI|U\.P\.I)\b/i,
+  upiId: /[\w.\-]+@[\w.\-]+/i,  // Matches ANY UPI ID (username@anything)
+  upiHandle: /@[a-zA-Z0-9.\-]+/g, // Matches @ handles
+  
   transfer: /\b(?:neft|rtgs|imps|transfer|send|भेजो|भेजे|पैसे\s*भेजो|पैसे\s*भेजे|fund|payment|refund|रिफंड)\b/i,
   
   // Phishing
@@ -55,6 +69,13 @@ const PATTERNS = {
   bank: /\b(?:sbi|state\s*bank|hdfc|icici|axis|kotak|pnb|canara|union|yesbank|bank|बैंक)\b/i,
   department: /\b(?:fraud\s*team|security\s*team|risk\s*team|customer\s*support|helpdesk|verification\s*team|support|fraud\s*prevention|technical|सपोर्ट|हेल्पडेस्क)\b/i,
   official: /\b(?:official|authorized|verified|registered|certified|ऑफिशियल|वेरिफाइड)\b/i,
+  
+  // ============ SOCIAL ENGINEERING DETECTION ============
+  // No keywords, just psychological manipulation
+  helping: /\b(?:help|सहायता|मदद|बचा|बचाओ|save|protect|secure)\b/i,
+  emotional: /\b(?:please|pls|कृपया|सर|madam|bhaiya|didi|brother|sister)\b/i,
+  supervisor: /\b(?:supervisor|manager|senior|head|boss|टीम\s*लीड|मैनेजर)\b/i,
+  urgent_help: /\b(?:turant|immediate|right now)\s*(?:help|मदद|करो)\b/i,
   
   // Contact information
   phone: /\b(?:\+91|0)?[6-9]\d{9}\b/,
@@ -259,12 +280,282 @@ const REPLIES = {
     "Kal call karo.",
     "Branch jaake baat karte hain.",
     "Dekhta hoon pehle."
+  ],
+  
+  // ============ SOCIAL ENGINEERING REPLIES (For Perplexity Fallback) ============
+  social_engineering: [
+    "Aap keh rahe ho mera account unsafe hai? Kaise pata chala?",
+    "Aap help kar rahe ho, lekin main samajh nahi pa raha kyun?",
+    "Mujhe laga bank aise hi inform karta hai.",
+    "Aapka number kaise mila mujhe?",
+    "Main thoda confused hoon, aap sahi mein bank se ho?",
+    "Kyun aap itni tension le rahe ho mere account ki?",
+    "Maine toh koi problem report nahi ki thi.",
+    "Aap kaunsa department ho jo directly customers ko call karte ho?",
+    "Yeh aapki personal initiative hai ya bank ka official process?",
+    "Main pehle apni branch se confirm kar leta hoon."
   ]
 };
 
 // ==============================================
+// PERPLEXITY AI INTEGRATION - REPLY SELECTOR ONLY
+// NO LOGIC DECISIONS, ONLY STYLISTIC REPLY ENHANCEMENT
+// ==============================================
+class PerplexityService {
+  
+  static async getReplySuggestion(message, conversationHistory, riskScore) {
+    if (!CONFIG.USE_PERPLEXITY) return null;
+    
+    try {
+      const response = await axios.post(
+        CONFIG.PERPLEXITY_URL,
+        {
+          model: 'llama-3.1-sonar-small-128k-online',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a confused Indian bank customer who speaks Hinglish (Hindi+English). 
+              You are talking to someone who claims to be from the bank.
+              You are cautious but not accusing. Never say "scam" or "fraud" directly.
+              Generate ONE natural, confused, Hinglish reply (max 15 words).
+              Reply should sound like a real person, not a bot.`
+            },
+            {
+              role: 'user',
+              content: `Last scammer message: "${message}"
+              Previous conversation: ${JSON.stringify(conversationHistory.slice(-3))}
+              Generate a natural Hinglish reply:`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 50
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${CONFIG.PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: CONFIG.PERPLEXITY_TIMEOUT
+        }
+      );
+      
+      const suggestion = response.data.choices[0]?.message?.content?.trim();
+      return suggestion || null;
+      
+    } catch (error) {
+      console.error('Perplexity API error:', error.message);
+      return null; // Fail silently, fallback to deterministic
+    }
+  }
+  
+  // ============ DETERMINE WHEN TO USE PERPLEXITY ============
+  static shouldUsePerplexity(signals, riskScore, turnCount) {
+    // Only use in early turns (1-4)
+    if (turnCount > CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX) return false;
+    
+    // Only use for medium risk, ambiguous messages
+    if (riskScore < CONFIG.PERPLEXITY_TRIGGER_RISK_MIN || 
+        riskScore > CONFIG.PERPLEXITY_TRIGGER_RISK_MAX) return false;
+    
+    // DON'T use if strong signals are present (deterministic handles these well)
+    if (signals.credential) return false;
+    if (signals.payment) return false;
+    if (signals.phishing) return false;
+    if (signals.threat) return false;
+    
+    // DO use for subtle social engineering
+    const shouldUse = 
+      signals.authority || 
+      signals.urgency ||
+      PATTERNS.helping.test(message) ||
+      PATTERNS.emotional.test(message) ||
+      PATTERNS.supervisor.test(message);
+    
+    return shouldUse;
+  }
+}
+
+// ==============================================
+// FIXED: INTELLIGENCE EXTRACTION - NOW CATCHES ALL UPI IDs
+// ==============================================
+class IntelligenceExtractor {
+  static createEmptyStore() {
+    return {
+      bankAccounts: [],
+      upiIds: [],
+      phishingLinks: [],
+      phoneNumbers: [],
+      suspiciousKeywords: []
+    };
+  }
+
+  static extractFromHistory(conversationHistory) {
+    const intelligence = this.createEmptyStore();
+    
+    conversationHistory.forEach(msg => {
+      if (msg.sender === 'scammer') {
+        this.extractFromText(msg.text, intelligence);
+      }
+    });
+    
+    // Deduplicate
+    intelligence.bankAccounts = [...new Set(intelligence.bankAccounts)];
+    intelligence.upiIds = [...new Set(intelligence.upiIds)];
+    intelligence.phishingLinks = [...new Set(intelligence.phishingLinks)];
+    intelligence.phoneNumbers = [...new Set(intelligence.phoneNumbers)];
+    intelligence.suspiciousKeywords = [...new Set(intelligence.suspiciousKeywords)];
+    
+    return intelligence;
+  }
+
+  // ============ FIXED: UPI EXTRACTION HELPER ============
+  static extractUPIIds(text, intelligence) {
+    // Method 1: Match full UPI pattern (username@domain.anything)
+    const fullUpiRegex = /[\w.\-]+@[\w.\-]+/gi;
+    const fullMatches = text.match(fullUpiRegex);
+    
+    if (fullMatches) {
+      fullMatches.forEach(upi => {
+        // Clean the UPI ID (remove trailing punctuation)
+        const clean = upi.toLowerCase()
+                      .trim()
+                      .replace(/[.,;:!?()\[\]{}\s]$/, '');
+        
+        if (clean.includes('@') && clean.length > 3) {
+          if (!intelligence.upiIds.includes(clean)) {
+            intelligence.upiIds.push(clean);
+            console.log(`✅ Extracted UPI ID: ${clean}`);
+          }
+        }
+      });
+    }
+    
+    // Method 2: Look for @ symbol and capture context
+    const atMatches = text.match(PATTERNS.upiHandle);
+    if (atMatches) {
+      atMatches.forEach(atPart => {
+        // Look backwards up to 30 chars to find the username
+        const beforeIndex = Math.max(0, text.indexOf(atPart) - 30);
+        const beforeText = text.substring(beforeIndex, text.indexOf(atPart));
+        const usernameMatch = beforeText.match(/[\w.\-]+$/);
+        
+        if (usernameMatch) {
+          const fullUpi = usernameMatch[0] + atPart;
+          const clean = fullUpi.toLowerCase().trim().replace(/[.,;:!?]$/, '');
+          
+          if (!intelligence.upiIds.includes(clean)) {
+            intelligence.upiIds.push(clean);
+            console.log(`✅ Extracted UPI ID (from @): ${clean}`);
+          }
+        }
+      });
+    }
+    
+    // Method 3: Check for UPI keyword in context
+    if (PATTERNS.upi.test(text) && intelligence.upiIds.length === 0) {
+      // Try to extract any word with @ that might be a UPI ID
+      const words = text.split(/\s+/);
+      words.forEach(word => {
+        if (word.includes('@')) {
+          const clean = word.toLowerCase().replace(/[.,;:!?]$/, '');
+          if (!intelligence.upiIds.includes(clean)) {
+            intelligence.upiIds.push(clean);
+            console.log(`✅ Extracted UPI ID (context): ${clean}`);
+          }
+        }
+      });
+    }
+  }
+
+  static extractFromText(text, intelligence) {
+    const lower = text.toLowerCase();
+    
+    // Extract bank accounts
+    const accounts = text.match(PATTERNS.account);
+    if (accounts) {
+      accounts.forEach(acc => {
+        const clean = acc.replace(/[\s-]/g, '');
+        if (clean.length >= 9 && clean.length <= 18 && /^\d+$/.test(clean)) {
+          if (!intelligence.bankAccounts.includes(clean)) {
+            intelligence.bankAccounts.push(clean);
+            console.log(`✅ Extracted Bank Account: ${clean}`);
+          }
+        }
+      });
+    }
+    
+    // ============ FIXED: Extract UPI IDs ============
+    this.extractUPIIds(text, intelligence);
+    
+    // Extract phone numbers
+    const phones = text.match(PATTERNS.phone);
+    if (phones) {
+      phones.forEach(phone => {
+        let clean = phone.replace(/[\s-]/g, '').replace('+91', '');
+        if (clean.startsWith('0')) clean = clean.slice(1);
+        if (clean.length === 10 && /^[6-9]/.test(clean)) {
+          if (!intelligence.phoneNumbers.includes(clean)) {
+            intelligence.phoneNumbers.push(clean);
+            console.log(`✅ Extracted Phone: ${clean}`);
+          }
+        }
+      });
+    }
+    
+    // Extract phishing links
+    const links = text.match(PATTERNS.link);
+    if (links) {
+      links.forEach(link => {
+        const normalized = link.toLowerCase().trim();
+        if (!intelligence.phishingLinks.includes(normalized)) {
+          intelligence.phishingLinks.push(normalized);
+          console.log(`✅ Extracted Link: ${normalized}`);
+        }
+      });
+    }
+    
+    // ============ EXTRACT KEYWORDS - HINGLISH ============
+    if (PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text)) 
+      intelligence.suspiciousKeywords.push('otp_request');
+    if (PATTERNS.pin.test(text)) 
+      intelligence.suspiciousKeywords.push('pin_request');
+    if (PATTERNS.password.test(text)) 
+      intelligence.suspiciousKeywords.push('password_request');
+    if (PATTERNS.cvv.test(text)) 
+      intelligence.suspiciousKeywords.push('cvv_request');
+    
+    if (PATTERNS.upi.test(text) || intelligence.upiIds.length > 0) 
+      intelligence.suspiciousKeywords.push('upi_request');
+    if (PATTERNS.transfer.test(text)) 
+      intelligence.suspiciousKeywords.push('transfer_request');
+    
+    if (PATTERNS.link.test(text)) 
+      intelligence.suspiciousKeywords.push('phishing_link');
+    if (PATTERNS.fake_offer.test(text)) 
+      intelligence.suspiciousKeywords.push('fake_offer');
+    
+    if (PATTERNS.urgent.test(text) || PATTERNS.urgent_hindi.test(text)) 
+      intelligence.suspiciousKeywords.push('urgency_tactic');
+    if (PATTERNS.deadline.test(text)) 
+      intelligence.suspiciousKeywords.push('deadline_pressure');
+    
+    if (PATTERNS.block.test(text) || PATTERNS.hindi_threat.test(text)) 
+      intelligence.suspiciousKeywords.push('account_block_threat');
+    if (PATTERNS.compromised.test(text)) 
+      intelligence.suspiciousKeywords.push('security_breach_claim');
+    
+    if (PATTERNS.bank.test(text)) 
+      intelligence.suspiciousKeywords.push('bank_impersonation');
+    if (PATTERNS.department.test(text)) 
+      intelligence.suspiciousKeywords.push('official_department_claim');
+    if (PATTERNS.official.test(text)) 
+      intelligence.suspiciousKeywords.push('authority_claim');
+  }
+}
+
+// ==============================================
 // CHAMPIONSHIP HINGLISH REPLY GENERATOR
-// NEVER ACCUSES, NEVER DETECTS, ALWAYS HUMAN
+// WITH HYBRID PERPLEXITY FALLBACK
 // ==============================================
 class HinglishReplyGenerator {
   
@@ -339,20 +630,46 @@ class HinglishReplyGenerator {
   }
   
   // ==============================================
-  // MAIN REPLY GENERATOR - NATURAL HINGLISH
+  // MAIN REPLY GENERATOR - WITH PERPLEXITY FALLBACK
   // ==============================================
-  static generateReply(session, scamDetected, signals) {
+  static async generateReply(session, scamDetected, signals, riskScore, messageText) {
     const state = this.initializeHumanState(session);
     const turnCount = session.conversationHistory.filter(m => m.sender === 'user').length + 1;
-    const lastMessage = session.conversationHistory[session.conversationHistory.length - 1]?.text || '';
     
-    // ============ SPECIAL: Phone number detected ============
+    // ============ CHECK IF WE SHOULD USE PERPLEXITY ============
+    const shouldUsePerplexity = PerplexityService.shouldUsePerplexity(
+      signals, 
+      riskScore, 
+      turnCount
+    );
+    
+    if (shouldUsePerplexity && CONFIG.USE_PERPLEXITY) {
+      console.log(`🤖 Using Perplexity for turn ${turnCount} (Risk: ${riskScore})`);
+      
+      const aiReply = await PerplexityService.getReplySuggestion(
+        messageText,
+        session.conversationHistory,
+        riskScore
+      );
+      
+      if (aiReply) {
+        state.usedReplies.add(aiReply);
+        return aiReply;
+      }
+      
+      // Fallback to social engineering replies if AI fails
+      return this.getUniqueReply(REPLIES.social_engineering, 'social_eng', state);
+    }
+    
+    // ============ DETERMINISTIC REPLY GENERATION ============
+    
+    // SPECIAL: Phone number detected
     if (state.extractedPhone && !state.usedReplies.has('phone_react')) {
       state.usedReplies.add('phone_react');
       return `Yeh aapka number hai kya ${state.extractedPhone}? Main call karta hoon check karne ke liye.`;
     }
     
-    // ============ PROGRESSIVE OTP RESPONSES ============
+    // PROGRESSIVE OTP RESPONSES
     if (signals.credential) {
       if (state.otpRequests === 1) {
         return this.getUniqueReply(REPLIES.turn4_otp, 'otp_1', state);
@@ -387,13 +704,12 @@ class HinglishReplyGenerator {
       }
     }
     
-    // ============ PHASE 1: Turns 1-3 ============
+    // PHASE 1: Turns 1-3
     if (turnCount === 1) {
       return this.getUniqueReply(REPLIES.turn1, 'turn1', state);
     }
     
     if (turnCount === 2) {
-      // Ask about transaction details
       if (!state.askedTransactionDetails) {
         state.askedTransactionDetails = true;
         return this.getUniqueReply(REPLIES.turn2, 'turn2', state);
@@ -402,7 +718,6 @@ class HinglishReplyGenerator {
     }
     
     if (turnCount === 3) {
-      // Ask about authority
       if (!state.askedEmployeeID) {
         state.askedEmployeeID = true;
         return this.getUniqueReply(REPLIES.turn3, 'turn3', state);
@@ -410,9 +725,8 @@ class HinglishReplyGenerator {
       return this.getUniqueReply(REPLIES.turn2, 'turn2_fallback', state);
     }
     
-    // ============ PHASE 2: Turns 4-6 ============
+    // PHASE 2: Turns 4-6
     if (turnCount === 4) {
-      // Natural progression - OTP or verification
       if (signals.credential && state.otpRequests <= 2) {
         return this.getUniqueReply(REPLIES.turn4_otp, 'turn4_otp', state);
       }
@@ -424,7 +738,6 @@ class HinglishReplyGenerator {
     }
     
     if (turnCount === 5) {
-      // Express doubt
       if (!state.usedReplies.has('doubt')) {
         state.usedReplies.add('doubt');
         return this.getUniqueReply(REPLIES.turn5_suspicion, 'turn5_suspicion', state);
@@ -433,7 +746,6 @@ class HinglishReplyGenerator {
     }
     
     if (turnCount === 6) {
-      // Suggest alternative verification
       if (!state.suggestedBranch) {
         state.suggestedBranch = true;
         return this.getUniqueReply(REPLIES.turn6_alternative, 'turn6_alternative', state);
@@ -441,9 +753,8 @@ class HinglishReplyGenerator {
       return this.getUniqueReply(REPLIES.turn6_process, 'turn6_process', state);
     }
     
-    // ============ PHASE 3: Turns 7-9 ============
+    // PHASE 3: Turns 7-9
     if (turnCount === 7) {
-      // Branch or family mention
       if (!state.suggestedFamily && Math.random() > 0.5) {
         state.suggestedFamily = true;
         return this.getUniqueReply(REPLIES.turn7_family, 'turn7_family', state);
@@ -452,7 +763,6 @@ class HinglishReplyGenerator {
     }
     
     if (turnCount === 8) {
-      // Call out persistence naturally
       if (state.otpRequests >= 3) {
         return this.getUniqueReply(REPLIES.turn8_persistent, 'turn8_persistent', state);
       }
@@ -460,7 +770,6 @@ class HinglishReplyGenerator {
     }
     
     if (turnCount === 9) {
-      // Final warning before exit
       if (!state.usedReplies.has('final')) {
         state.usedReplies.add('final');
         return this.getUniqueReply(REPLIES.turn9_final_warning, 'turn9_final', state);
@@ -468,16 +777,15 @@ class HinglishReplyGenerator {
       return this.getUniqueReply(REPLIES.turn9_complaint, 'turn9_complaint', state);
     }
     
-    // ============ PHASE 4: Turns 10+ ============
+    // PHASE 4: Turns 10+
     if (turnCount >= 10) {
       if (turnCount === 10) {
         return this.getUniqueReply(REPLIES.turn10_exit, 'turn10_exit', state);
       }
-      // Natural trailing off
       return this.getUniqueReply(REPLIES.turn10_ignore, 'turn10_ignore', state);
     }
     
-    // ============ FALLBACK: Natural confused reply ============
+    // FALLBACK: Natural confused reply
     return this.getNaturalFallback(state, signals);
   }
   
@@ -508,130 +816,9 @@ class HinglishReplyGenerator {
       return reply;
     }
     
-    // If all used, take random and reset that category
+    // If all used, take random
     const reply = replyArray[Math.floor(Math.random() * replyArray.length)];
     return reply;
-  }
-}
-
-// ==============================================
-// INTELLIGENCE EXTRACTION - HINGLISH OPTIMIZED
-// ==============================================
-class IntelligenceExtractor {
-  static createEmptyStore() {
-    return {
-      bankAccounts: [],
-      upiIds: [],
-      phishingLinks: [],
-      phoneNumbers: [],
-      suspiciousKeywords: []
-    };
-  }
-
-  static extractFromHistory(conversationHistory) {
-    const intelligence = this.createEmptyStore();
-    
-    conversationHistory.forEach(msg => {
-      if (msg.sender === 'scammer') {
-        this.extractFromText(msg.text, intelligence);
-      }
-    });
-    
-    intelligence.bankAccounts = [...new Set(intelligence.bankAccounts)];
-    intelligence.upiIds = [...new Set(intelligence.upiIds)];
-    intelligence.phishingLinks = [...new Set(intelligence.phishingLinks)];
-    intelligence.phoneNumbers = [...new Set(intelligence.phoneNumbers)];
-    intelligence.suspiciousKeywords = [...new Set(intelligence.suspiciousKeywords)];
-    
-    return intelligence;
-  }
-
-  static extractFromText(text, intelligence) {
-    const lower = text.toLowerCase();
-    
-    // Extract bank accounts
-    const accounts = text.match(PATTERNS.account);
-    if (accounts) {
-      accounts.forEach(acc => {
-        const clean = acc.replace(/[\s-]/g, '');
-        if (clean.length >= 12 && clean.length <= 18 && /^\d+$/.test(clean)) {
-          if (!intelligence.bankAccounts.includes(clean)) {
-            intelligence.bankAccounts.push(clean);
-          }
-        }
-      });
-    }
-    
-    // Extract UPI IDs
-    const upis = text.match(PATTERNS.upiId);
-    if (upis) {
-      upis.forEach(upi => {
-        const normalized = upi.toLowerCase();
-        if (!intelligence.upiIds.includes(normalized)) {
-          intelligence.upiIds.push(normalized);
-        }
-      });
-    }
-    
-    // Extract phone numbers
-    const phones = text.match(PATTERNS.phone);
-    if (phones) {
-      phones.forEach(phone => {
-        let clean = phone.replace(/[\s-]/g, '').replace('+91', '');
-        if (clean.startsWith('0')) clean = clean.slice(1);
-        if (clean.length === 10 && !intelligence.phoneNumbers.includes(clean)) {
-          intelligence.phoneNumbers.push(clean);
-        }
-      });
-    }
-    
-    // Extract phishing links
-    const links = text.match(PATTERNS.link);
-    if (links) {
-      links.forEach(link => {
-        const normalized = link.toLowerCase().trim();
-        if (!intelligence.phishingLinks.includes(normalized)) {
-          intelligence.phishingLinks.push(normalized);
-        }
-      });
-    }
-    
-    // ============ EXTRACT KEYWORDS - HINGLISH ============
-    if (PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text)) 
-      intelligence.suspiciousKeywords.push('otp_request');
-    if (PATTERNS.pin.test(text)) 
-      intelligence.suspiciousKeywords.push('pin_request');
-    if (PATTERNS.password.test(text)) 
-      intelligence.suspiciousKeywords.push('password_request');
-    if (PATTERNS.cvv.test(text)) 
-      intelligence.suspiciousKeywords.push('cvv_request');
-    
-    if (PATTERNS.upi.test(text)) 
-      intelligence.suspiciousKeywords.push('upi_request');
-    if (PATTERNS.transfer.test(text)) 
-      intelligence.suspiciousKeywords.push('transfer_request');
-    
-    if (PATTERNS.link.test(text)) 
-      intelligence.suspiciousKeywords.push('phishing_link');
-    if (PATTERNS.fake_offer.test(text)) 
-      intelligence.suspiciousKeywords.push('fake_offer');
-    
-    if (PATTERNS.urgent.test(text) || PATTERNS.urgent_hindi.test(text)) 
-      intelligence.suspiciousKeywords.push('urgency_tactic');
-    if (PATTERNS.deadline.test(text)) 
-      intelligence.suspiciousKeywords.push('deadline_pressure');
-    
-    if (PATTERNS.block.test(text)) 
-      intelligence.suspiciousKeywords.push('account_block_threat');
-    if (PATTERNS.compromised.test(text)) 
-      intelligence.suspiciousKeywords.push('security_breach_claim');
-    
-    if (PATTERNS.bank.test(text)) 
-      intelligence.suspiciousKeywords.push('bank_impersonation');
-    if (PATTERNS.department.test(text)) 
-      intelligence.suspiciousKeywords.push('official_department_claim');
-    if (PATTERNS.official.test(text)) 
-      intelligence.suspiciousKeywords.push('authority_claim');
   }
 }
 
@@ -669,6 +856,7 @@ class ScamDetector {
     if (signals.threat) score += 20;
     if (signals.authority) score += 15;
     
+    // Bonuses for combinations
     if (signals.credential && signals.urgency) score += 15;
     if (signals.threat && signals.urgency) score += 15;
     if (signals.credential && signals.threat) score += 15;
@@ -683,6 +871,7 @@ class ScamDetector {
     if (userMessages.length >= CONFIG.MAX_TURNS) return true;
     
     if (session.scamDetected) {
+      // Exit if we have enough intelligence
       if (session.intelligence.bankAccounts.length >= 1) return true;
       if (session.intelligence.upiIds.length >= 1) return true;
       if (session.intelligence.phishingLinks.length >= 1) return true;
@@ -714,12 +903,15 @@ class CallbackService {
         phoneNumbers: intelligence.phoneNumbers,
         suspiciousKeywords: intelligence.suspiciousKeywords
       },
-      agentNotes: `Scammer used ${intelligence.suspiciousKeywords.join(', ')}. Extracted ${intelligence.bankAccounts.length} bank accounts, ${intelligence.phoneNumbers.length} phone numbers.`
+      agentNotes: `Scammer used ${intelligence.suspiciousKeywords.slice(0, 5).join(', ')}${intelligence.suspiciousKeywords.length > 5 ? '...' : ''}. Extracted ${intelligence.bankAccounts.length} bank accounts, ${intelligence.upiIds.length} UPI IDs, ${intelligence.phoneNumbers.length} phone numbers.`
     };
+
+    console.log('\n📤 CALLBACK PAYLOAD:');
+    console.log(JSON.stringify(payload, null, 2));
 
     try {
       await axios.post(CONFIG.CALLBACK_URL, payload, { timeout: 5000 });
-      console.log('✅ Callback sent for session:', sessionId);
+      console.log('✅ Callback successful for session:', sessionId);
     } catch (error) {
       console.error('❌ Callback failed:', error.message);
     }
@@ -727,7 +919,7 @@ class CallbackService {
 }
 
 // ==============================================
-// 🏆 MAIN CONTROLLER - FINAL CHAMPIONSHIP EDITION
+// 🏆 MAIN CONTROLLER - HYBRID CHAMPIONSHIP EDITION
 // ==============================================
 export const honey_pot = async (req, res) => {
     try {
@@ -763,19 +955,22 @@ export const honey_pot = async (req, res) => {
         // Analyze for scam
         const analysis = ScamDetector.analyze(message.text);
         
-        // Extract intelligence
+        // Extract intelligence - FIXED UPI EXTRACTION!
         IntelligenceExtractor.extractFromText(message.text, session.intelligence);
         
         // Update scam detection (internal only)
         if (!session.scamDetected && analysis.isScam) {
             session.scamDetected = true;
+            console.log(`🚨 Scam detected for session ${sessionId} at turn ${session.conversationHistory.length}`);
         }
 
-        // Generate natural Hinglish reply
-        const reply = HinglishReplyGenerator.generateReply(
+        // Generate natural Hinglish reply (with optional Perplexity fallback)
+        const reply = await HinglishReplyGenerator.generateReply(
             session,
             session.scamDetected,
-            analysis.signals
+            analysis.signals,
+            analysis.riskScore,
+            message.text
         );
 
         // Add bot reply
@@ -785,10 +980,13 @@ export const honey_pot = async (req, res) => {
             timestamp: Date.now()
         });
 
+        console.log(`💬 Turn ${session.conversationHistory.filter(m => m.sender === 'user').length}: ${reply}`);
+
         // Check if session should end
         if (ScamDetector.shouldExit(session)) {
             await CallbackService.sendFinalResult(sessionId, session);
             sessions.delete(sessionId);
+            console.log(`🏁 Session ${sessionId} ended`);
         }
 
         // Return response in exact format
@@ -798,7 +996,7 @@ export const honey_pot = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Controller error:', error);
+        console.error('❌ Controller error:', error);
         return res.json({
             status: 'success',
             reply: "Mujhe samajh nahi aaya, thoda aur batao."
