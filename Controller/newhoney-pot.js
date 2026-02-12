@@ -1,4 +1,7 @@
 // controllers/honeypotController.js - ULTIMATE HINGLISH CHAMPION EDITION
+// 100% PURE HINGLISH - NO ENGLISH RESPONSES
+// WITH ANTI-REGRESSION GUARD - NEVER GOES BACK TO OTP AFTER ESCALATION
+
 import axios from 'axios';
 
 const sessions = new Map();
@@ -55,29 +58,29 @@ const PATTERNS = {
 
 const REPLIES = {
   account_first: [
-    "Aapko mera account number {account} kaise pata chala?",
+    "Aapko mera account number {account} kaise pata chala bhai?",
     "{account} - yeh mera account number hai kya?",
-    "Aapke paas mera account number kahan se aaya?",
-    "Bhai, mera account number {account} hai, but Maine kisi ko nahi diya tha.",
-    "How do you know my account number {account}?",
+    "Aapke paas mera account number kahan se aaya yaar?",
+    "Bhai, mera account number {account} hai, par maine kisi ko nahi diya tha.",
     "Yeh toh confidential hai yaar, aapke paas kaise hai?",
-    "Bro, seriously? Aapko mera account number pata hai?",
-    "Mera account number {account} hai, but maine kabhi share nahi kiya.",
-    "Kaise mila aapko mera account number?",
-    "I never shared my account number with anyone. How do you have it?"
+    "Bro, aapko mera account number kaise mila?",
+    "Mera account number {account} hai, par maine kabhi share nahi kiya.",
+    "Kaise mila aapko mera account number bhai?",
+    "Aapke paas mera personal information kahan se aaya?",
+    "Seriously? Aapko mera account number pata hai?"
   ],
   
   account_second: [
     "Aap baar baar yahi account number {account} bhej rahe ho yaar.",
-    "Mera account number {account} hai, but main branch jakar verify karunga pehle.",
-    "Aapko account number pata hai, but OTP nahi dunga main.",
-    "Account number sahi hai, but ab aage kya chahiye?",
-    "Bro, you already have my account number, then why OTP?",
-    "Same account number {account} again and again. Bolo kya chahiye?",
-    "Ha account number correct hai, but trust nahi ho raha.",
+    "Mera account number {account} hai, par main branch jakar verify karunga pehle.",
+    "Aapko account number pata hai, par OTP nahi dunga main.",
+    "Account number sahi hai, par ab aage kya chahiye bhai?",
+    "Bro, aapke paas account number hai, phir OTP kyun?",
+    "Same account number {account} baar baar bhej rahe ho. Bolo kya chahiye?",
+    "Ha account number correct hai, par trust nahi ho raha yaar.",
     "Aapke paas account number hai, bas itna kaafi hai?",
-    "Account number toh pata hai aapko, ab OTP kyun?",
-    "You know my account number, but I'm not giving anything else."
+    "Account number toh pata hai aapko, ab OTP kyun maang rahe ho?",
+    "Aapko account number pata hai, par main kuch aur nahi dunga."
   ],
   
   upi_first: [
@@ -85,12 +88,12 @@ const REPLIES = {
     "{upi} - yeh kaunsa bank hai bhai?",
     "Main check kar raha hoon, yeh UPI ID sahi hai?",
     "Aapne {upi} diya hai, yeh kaunsa UPI app hai?",
-    "Bro, is this UPI ID {upi} yours?",
+    "Bro, yeh UPI ID {upi} aapki hi hai?",
     "Yeh {upi} SBI se linked hai kya?",
-    "Ye UPI ID verified hai ya nahi?",
-    "Aapka UPI ID {upi} hai? Let me check.",
-    "Which bank is this UPI {upi} from?",
-    "Is this correct UPI ID? {upi}"
+    "Ye UPI ID verified hai ya nahi bhai?",
+    "Aapka UPI ID {upi} hai? Main check kar leta hoon.",
+    "Which bank ka UPI hai yeh {upi}?",
+    "Yeh UPI ID correct hai kya? {upi}"
   ],
   
   upi_second: [
@@ -98,25 +101,25 @@ const REPLIES = {
     "Aap baar baar yahi {upi} bhej rahe ho. Yeh SBI ka nahi hai.",
     "SBI ka UPI ID @sbi ya @okaxis hota hai, yeh {upi} kyun hai?",
     "Ye UPI ID toh fake lag raha hai bro.",
-    "I checked {upi}, this is not SBI's official UPI ID.",
+    "Maine check kar liya, {upi} SBI ka official UPI ID nahi hai.",
     "Bro, SBI ka UPI ID alag hota hai, yeh kya hai?",
-    "Aap bar bar yahi UPI bhej rahe ho, but yeh SBI ka nahi hai.",
-    "{upi} verified nahi hai, main nahi use karunga.",
-    "Yeh UPI ID SBI se linked nahi hai.",
-    "You keep sending the same UPI {upi}. This isn't SBI's."
+    "Aap bar bar yahi UPI bhej rahe ho, par yeh SBI ka nahi hai.",
+    "{upi} verified nahi hai, main use nahi karunga.",
+    "Yeh UPI ID SBI se linked nahi hai yaar.",
+    "Aap baar baar same UPI {upi} bhej rahe ho, par yeh SBI ka nahi hai."
   ],
   
   phone_first: [
     "Yeh {phone} aapka number hai? Main call karta hoon check karne ke liye.",
-    "{phone} - yeh aapka official number hai?",
+    "{phone} - yeh aapka official number hai bhai?",
     "Aapne {phone} diya hai, main is number ko call karta hoon.",
     "Bro, yehi aapka number hai na {phone}?",
     "Is number pe call karu? {phone}",
     "Kya main {phone} pe call kar sakta hoon verify karne ke liye?",
     "Yeh {phone} bank ka official number hai?",
-    "Aapka number {phone} hai? Let me call and check.",
-    "Main {phone} pe call karta hoon, thandi ruko.",
-    "Is this your number {phone}? I'll call you."
+    "Aapka number {phone} hai? Main call karta hoon check karne.",
+    "Main {phone} pe call karta hoon, thodi der ruko.",
+    "Yeh aapka hi number hai na {phone}?"
   ],
   
   phone_second: [
@@ -125,11 +128,11 @@ const REPLIES = {
     "Kya yeh {phone} sahi number hai? Call connect nahi ho raha.",
     "Call kiya par koi nahi utha {phone} pe.",
     "Bro, aapka number {phone} engaged bata raha hai.",
-    "I called {phone} twice, no one picked up.",
-    "Is {phone} the correct number? Call isn't connecting.",
-    "Maine {phone} pe 2 baar call kiya, koi nahi utha.",
-    "Number {phone} pe call kiya but no response.",
-    "Your number {phone} is showing engaged."
+    "Maine {phone} pe do baar call kiya, koi nahi utha.",
+    "Kya yeh {phone} sahi number hai? Call nahi lag raha.",
+    "Maine {phone} pe 2 baar call kiya, koi response nahi aaya.",
+    "Number {phone} pe call kiya par koi nahi utha.",
+    "Aapka number {phone} engaged aa raha hai bro."
   ],
   
   phone_third: [
@@ -137,25 +140,25 @@ const REPLIES = {
     "Maine {phone} pe call kiya tha, abhi tak koi jawab nahi aaya.",
     "Yeh {phone} number SBI ke official number se match nahi karta.",
     "{phone} ke jagah 1800 wala number do na.",
-    "Same number {phone} baar baar kyun de rahe ho?",
+    "Same number {phone} baar baar kyun de rahe ho bhai?",
     "Mujhe SBI ka 1800 number do, yeh nahi chalega.",
     "Bro, bar bar same number {phone} kyun de rahe ho?",
-    "This number {phone} doesn't match SBI's official number.",
-    "Give me the 1800 number instead of {phone}.",
-    "You're giving me the same number {phone} repeatedly."
+    "Yeh {phone} number SBI ka official number nahi hai.",
+    "1800 wala number do, yeh {phone} nahi chalega.",
+    "Aap baar baar yahi {phone} de rahe ho, par main 1800 pe hi bharosa karunga."
   ],
   
   otp_1: [
-    "OTP kyun chahiye bhai? Bank toh OTP nahi maangta.",
+    "OTP kyun chahiye bhai? Bank OTP nahi maangta.",
     "Bro, OTP kyun maang rahe ho?",
-    "Maine suna hai bank kabhi OTP nahi poochta.",
-    "OTP share karna safe nahi hai yaar.",
+    "Maine suna hai bank kabhi OTP nahi poochta yaar.",
+    "OTP share karna safe nahi hai.",
     "Mere SMS mein likha hai 'Never share OTP'.",
     "Yeh RBI guidelines ke against hai na?",
     "Bank wale OTP nahi maangte bhai.",
-    "Why do you need OTP? Banks never ask for OTP.",
-    "Sharing OTP is not safe yaar.",
-    "Isn't this against RBI guidelines?"
+    "OTP maangna hi galat hai yaar.",
+    "Bank OTP nahi maangta phone pe.",
+    "Yeh toh basic banking rule hai bhai."
   ],
   
   otp_2: [
@@ -163,38 +166,38 @@ const REPLIES = {
     "Main check kar raha hoon, koi OTP nahi hai.",
     "Network slow hai shayad, OTP nahi aa raha.",
     "Aapne OTP kab bheja? Maine toh dekha nahi.",
-    "Phir se bhejo, OTP nahi aaya.",
+    "Phir se bhejo yaar, OTP nahi aaya.",
     "Abhi tak OTP nahi aaya bro, check karo.",
     "Kya aapne sahi number pe bheja hai?",
-    "I still haven't received the OTP. Did you send it?",
-    "Please resend, OTP not received.",
-    "When did you send the OTP? I haven't seen it."
+    "OTP ka wait kar raha hoon, abhi tak nahi aaya.",
+    "Dobara bhejo, OTP receive nahi hua.",
+    "Kya aapne bheja tha? Mujhe toh nahi aaya."
   ],
   
   otp_3: [
-    "Aap baar baar OTP kyun maang rahe ho yaar?",
+    "Aap baar baar OTP kyun maang rahe ho bhai?",
     "Teen baar OTP maang liya aapne. Thoda ajeeb lag raha hai.",
     "Itni baar OTP maangte hain kya bank wale?",
     "Aapne 3 baar OTP maang liya. Main nahi dunga.",
-    "Bro, 3rd time asking for OTP? This is sus.",
+    "Bro, teen baar OTP maang rahe ho? Yeh suspicious hai.",
     "Bank employee aise nahi karte. Aap sahi ho?",
-    "You've asked for OTP three times now. That's suspicious.",
-    "Do bank employees ask for OTP this many times?",
-    "Third time asking for OTP, this isn't right.",
-    "Why do you keep asking for OTP again and again?"
+    "Aapne 3 baar OTP manga liya, main nahi dunga ab.",
+    "Third time OTP maang rahe ho, yeh sahi nahi hai.",
+    "Itni baar OTP maang kar rahe ho, mujhe trust nahi ho raha.",
+    "Aap baar baar OTP kyun maang rahe ho yaar?"
   ],
   
   otp_4: [
     "Main branch jakar puchta hoon pehle.",
-    "Mere friend ne kaha tha aise requests ignore karo.",
+    "Mere friend ne kaha tha aise requests ignore karne ka.",
     "Mujhe laga bank kabhi OTP nahi maangta.",
     "Main kal subah bank jakar confirm karunga.",
     "Aap itna insist kar rahe ho, mujhe trust nahi ho raha.",
     "Ab toh mujhe bhi doubt ho raha hai bro.",
     "Main branch se confirm kar lunga pehle.",
-    "I'll go to the branch and ask first.",
-    "My friend told me to ignore such requests.",
-    "You're insisting too much, I don't trust this."
+    "Pehle branch jaata hoon, phir baat karte hain.",
+    "Aap itna force kyun kar rahe ho? Main branch jaunga.",
+    "Mujhe lagta hai pehle branch jakar puchna chahiye."
   ],
   
   otp_5: [
@@ -205,9 +208,9 @@ const REPLIES = {
     "Aap OTP maangna band karo, main nahi dunga.",
     "Ab main cyber cell call kar raha hoon bro.",
     "Aapka number block kar dunga main.",
-    "I'll file a complaint at my branch.",
-    "Why are you insisting so much? I won't give OTP.",
-    "I'm calling cyber cell right now."
+    "Main branch mein complaint kar dunga aapke khilaf.",
+    "Ab main cyber crime mein report kar raha hoon.",
+    "Aapki baat karke time waste hua, main complaint kar dunga."
   ],
   
   tollfree: [
@@ -219,8 +222,8 @@ const REPLIES = {
     "SBI ka official customer care 1800 425 3800 hai. Yeh aapka number kyun hai?",
     "Aap 1800 wala number kyun nahi de rahe?",
     "SBI ka 1800 number hota hai, yeh +91 kyun de rahe ho?",
-    "Give me a toll-free 1800 number, +91 won't work.",
-    "I know SBI's 1800 number. You call from there."
+    "Toll-free 1800 number do, main wahan call karta hoon.",
+    "Mujhe SBI ka 1800 number pata hai, aap wahan se hi call karo."
   ],
   
   cyber: [
@@ -231,9 +234,9 @@ const REPLIES = {
     "Aapka number main report kar dunga.",
     "Ab main cyber crime call kar raha hoon.",
     "Aapka number police ko de dunga.",
-    "I'm going to file a complaint with cyber crime.",
-    "I've noted your number. Will file a complaint.",
-    "I'm reporting your number."
+    "Main cyber cell mein report kar dunga aapko.",
+    "1930 pe call karta hoon abhi, yehi cyber cell ka number hai?",
+    "Maine aapka number cyber cell ko de diya hai."
   ],
   
   branch: [
@@ -244,9 +247,9 @@ const REPLIES = {
     "Main apne ghar ke paas wali branch mein chala jaata hoon.",
     "Main branch jakar hi baat karunga.",
     "Aap branch ka address do, main abhi aata hoon.",
-    "I'll come to the branch tomorrow at 11 AM.",
-    "Send me the branch address, I'll come right now.",
-    "My home branch is in Andheri West, should I go there?"
+    "Kal subah branch aa raha hoon, wahan baat karte hain.",
+    "Main branch manager se baat karunga pehle.",
+    "Meri nearest branch ka address bhejo, main wahan jaata hoon."
   ],
   
   policy: [
@@ -257,9 +260,9 @@ const REPLIES = {
     "Main toh kabhi kisi ko OTP nahi deta.",
     "RBI rules ke against hai yeh.",
     "SBI khud bolta hai OTP mat do kisi ko.",
-    "RBI has clearly said banks don't ask for OTP.",
-    "My bank's T&Cs say never share OTP.",
-    "I've seen on TV, this is how fraud happens."
+    "RBI guidelines clearly bolti hai OTP nahi maangte.",
+    "Banking rules ke according yeh galat hai.",
+    "SBI ka rule hai - kabhi OTP share mat karo."
   ],
   
   suspicion: [
@@ -267,12 +270,12 @@ const REPLIES = {
     "Pata nahi, mujhe trust nahi ho raha.",
     "Main confuse hoon, aap kaun ho actually?",
     "Yeh sahi hai kya? Main soch raha hoon.",
-    "Bro, honestly this feels like a scam.",
+    "Bro, honestly yeh scam lag raha hai.",
     "Aapka number kaise mila mujhe?",
     "Mujhe trust nahi ho raha abhi.",
-    "This conversation is feeling a bit weird.",
-    "I don't know, I'm not getting trust.",
-    "I'm confused, who are you actually?"
+    "Yeh conversation weird lag raha hai bhai.",
+    "I'm getting suspicious abhi.",
+    "Aap sahi mein bank se ho ya kahan se?"
   ],
   
   fine: [
@@ -283,9 +286,9 @@ const REPLIES = {
     "RBI aise jurmana nahi lagata.",
     "Ab jurmana kya beech mein yaar?",
     "Fine ka kya scene hai bro?",
-    "Fine? Why fine? I didn't do anything wrong.",
-    "Why would there be a penalty? My account was fine.",
-    "First you said block, now a fine also?"
+    "Jurmana ka kya reason hai bhai?",
+    "Maine toh kuch galat kiya hi nahi.",
+    "Pehle block, ab jurmana - yeh kya hai?"
   ],
   
   permanent: [
@@ -296,9 +299,9 @@ const REPLIES = {
     "Permanent block ka authority sirf branch manager ko hai.",
     "Bro, permanent block bahut badi baat hai.",
     "Itna strict action kyun bhai?",
-    "Permanently block? Why such a big action?",
-    "Block forever? That's too strict.",
-    "For permanent block, I need to visit the branch, right?"
+    "Permanent block ka matlab samajhte ho?",
+    "Itna bada action itni chhoti baat ke liye?",
+    "Permanent block toh branch level pe hota hai."
   ],
   
   authority: [
@@ -307,11 +310,11 @@ const REPLIES = {
     "Kya main aapke manager se baat kar sakta hoon?",
     "Aapka naam aur designation kya hai?",
     "Mujhe bank domain se official email bhejo.",
-    "First tell me your employee ID.",
+    "Pehle apna employee ID batao.",
     "Manager se baat karani hai mujhe.",
-    "Which department are you from?",
-    "What's your employee ID? I'll verify.",
-    "Can I speak to your manager?"
+    "Aap konse team se ho bhai?",
+    "Apna ID card dikhao pehle.",
+    "Bank ka official email ID se mail bhejo."
   ],
   
   resend: [
@@ -321,10 +324,10 @@ const REPLIES = {
     "Kaunse number pe RESEND bhejna hai?",
     "RESEND kar diya, ab wait karta hoon.",
     "Bro, RESEND kiya maine, ab kya?",
-    "RESEND? Which number should I send it to?",
-    "I typed RESEND, now what?",
-    "I sent RESEND, will OTP come now?",
-    "Which number should I RESEND to?"
+    "RESEND ka matlab samajh nahi aaya.",
+    "Kahan pe RESEND bhejna hai?",
+    "Maine RESEND kar diya, check karo.",
+    "RESEND option kahan hai bhai?"
   ],
   
   family: [
@@ -333,11 +336,11 @@ const REPLIES = {
     "Meri wife ne kaha yeh scam ho sakta hai.",
     "Mere friend ke saath aise hi hua tha, main usse puchta hoon.",
     "Mere cousin ne kaha aise calls ignore karne ka.",
-    "Let me ask my brother, he works in SBI.",
-    "My friend also got such call, it was scam.",
-    "My father works at a bank, let me ask him.",
-    "My brother also works at SBI, I'll call him first.",
-    "My wife said this might be a scam."
+    "Let me ask my brother, woh SBI mein hai.",
+    "Mere friend ko bhi aisi call aayi thi, scam thi.",
+    "Mere papa bank mein hain, unse baat karta hoon.",
+    "Meri wife bol rahi hai yeh scam hai.",
+    "Mere cousin ne bola aise calls pe dhyan mat do."
   ],
   
   turn1: [
@@ -346,11 +349,11 @@ const REPLIES = {
     "Mere account ko kya hua? Maine koi transaction nahi kiya.",
     "Mujhe block ke baare mein koi message nahi aaya.",
     "Suddenly block kyun ho raha hai mera account?",
-    "Bro, what happened to my account?",
-    "Why is my account being blocked? I haven't done anything wrong.",
-    "Which bank is this from?",
-    "What happened to my account? I didn't do any transaction.",
-    "I didn't receive any message about blocking."
+    "Bro, mere account ko kya hua?",
+    "Maine toh koi galat kaam nahi kiya.",
+    "Account block kyun ho raha hai batao na?",
+    "Mujhe koi notification nahi aaya.",
+    "Yeh sab kya chal raha hai mere account mein?"
   ],
   
   turn2: [
@@ -358,12 +361,12 @@ const REPLIES = {
     "Yeh transaction kahan se hua?",
     "Mujhe is transaction ke liye koi OTP nahi aaya.",
     "Yeh transaction kab hua? Main toh ghar tha.",
-    "Which transaction are you talking about?",
+    "Which transaction? Maine toh kuch nahi kiya.",
     "Maine toh koi transaction nahi kiya bhai.",
-    "Kaunsa transaction? How much money?",
-    "Where was this transaction from?",
-    "I didn't receive any OTP for this transaction.",
-    "When did this transaction happen? I was at home."
+    "Kaunsa transaction? Kitne amount ka?",
+    "Transaction kab hua, time batao?",
+    "Mujhe toh koi transaction ka pata nahi.",
+    "Yeh transaction galat hai bhai, maine nahi kiya."
   ],
   
   turn3: [
@@ -371,12 +374,12 @@ const REPLIES = {
     "Aapka employee ID kya hai? Main verify karunga.",
     "Apna naam aur designation bata sakte ho?",
     "Kaunsi branch se call kar rahe ho?",
-    "First tell me who you are.",
+    "Pehle batao aap kaun ho?",
     "Aap kaun ho actually? Bank se ho ya kahan se?",
-    "Which department are you from?",
-    "What's your employee ID? I'll verify.",
-    "Can you tell me your name and designation?",
-    "Which branch are you calling from?"
+    "Aapka department kya hai bhai?",
+    "Employee ID batao, main check karunga.",
+    "Aapka naam kya hai aur kaunse team se ho?",
+    "Branch kaunsi hai aapki?"
   ],
   
   exit: [
@@ -387,9 +390,9 @@ const REPLIES = {
     "Main abhi SBI customer care call kar raha hoon.",
     "Ab main branch ja raha hoon, bye.",
     "Maine SBI ko inform kar diya hai.",
-    "I'm going to the branch now. You do your work.",
-    "I've informed my branch. They'll contact you.",
-    "I'm blocking your number. Bye."
+    "Main branch jakar hi baat karunga ab.",
+    "Aapse baat karke time waste hua, main branch ja raha hoon.",
+    "Maine apni branch ko sab bata diya hai."
   ],
   
   fallback: [
@@ -400,9 +403,9 @@ const REPLIES = {
     "Kya main apni branch aa sakta hoon iske liye?",
     "Bro, samajh nahi aaya, ek baar phir se batao.",
     "Kya problem hai exactly?",
-    "I didn't understand, please explain a bit more.",
-    "Which bank are you from? Tell me that first.",
-    "I'm a bit confused, what exactly is the problem?"
+    "Mujhe kuch samajh mein nahi aa raha.",
+    "Thoda simple language mein batao bhai.",
+    "Main confuse ho gaya, kya chahiye aapko?"
   ]
 };
 
@@ -605,6 +608,33 @@ class KeywordDetector {
 
 class ReplyGenerator {
   static generateReply(detected, session) {
+    // ============ ANTI-REGRESSION GUARD ============
+    if (session.finalEscalation) {
+      if (detected.hasCyber || detected.hasBranch || session.threatCount >= 3) {
+        return this.getRandomReply('cyber');
+      }
+      if (session.turnCount >= 9) {
+        return this.getRandomReply('exit');
+      }
+      return this.getRandomReply('branch');
+    }
+
+    // ============ TRIGGER FINAL ESCALATION ============
+    if (!session.finalEscalation) {
+      const shouldEscalate = 
+        session.otpRequests >= 4 ||
+        session.threatCount >= 3 ||
+        detected.hasPermanent ||
+        detected.hasFine ||
+        detected.hasCyber ||
+        session.turnCount >= 8;
+      
+      if (shouldEscalate) {
+        session.finalEscalation = true;
+        session.turnCount = 8;
+      }
+    }
+
     if (detected.hasAccount && detected.accountNumber) {
       if (!session.accountQuestioned) {
         session.accountQuestioned = true;
@@ -652,17 +682,26 @@ class ReplyGenerator {
     }
     if (detected.hasBranch) return this.getRandomReply('branch');
     if (detected.hasFamily) return this.getRandomReply('family');
-    if (detected.hasCyber) return this.getRandomReply('cyber');
-    if (detected.hasLink) return "I don't click on unknown links. Is this safe?";
-    if (detected.hasFakeOffer) return "I didn't win any lottery. This seems fake.";
+    if (detected.hasCyber) {
+      session.finalEscalation = true;
+      return this.getRandomReply('cyber');
+    }
+    if (detected.hasLink) return "Main unknown links pe click nahi karta. Yeh safe hai kya?";
+    if (detected.hasFakeOffer) return "Maine koi lottery nahi jiti. Yeh fake lag raha hai.";
     const turnCount = session.turnCount || 1;
     session.turnCount = turnCount + 1;
     if (turnCount === 1) return this.getRandomReply('turn1');
     if (turnCount === 2) return this.getRandomReply('turn2');
     if (turnCount === 3) return this.getRandomReply('turn3');
-    if (turnCount <= 5) return this.getRandomReply('suspicion');
-    if (turnCount <= 7) return this.getRandomReply('policy');
-    if (turnCount <= 9) return this.getRandomReply('cyber');
+    if (turnCount === 4) return this.getRandomReply('suspicion');
+    if (turnCount === 5) return this.getRandomReply('policy');
+    if (turnCount === 6) return this.getRandomReply('otp_3');
+    if (turnCount === 7) return this.getRandomReply('otp_4');
+    if (turnCount === 8) {
+      session.finalEscalation = true;
+      return this.getRandomReply('branch');
+    }
+    if (turnCount === 9) return this.getRandomReply('cyber');
     return this.getRandomReply('exit');
   }
   
@@ -760,7 +799,8 @@ export const honey_pot = async (req, res) => {
         threatCount: 0,
         phoneMentionCount: 0,
         turnCount: 1,
-        metadata: metadata
+        metadata: metadata,
+        finalEscalation: false
       });
     }
     const session = sessions.get(sessionId);
