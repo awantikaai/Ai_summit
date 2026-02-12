@@ -1,6 +1,5 @@
 // controllers/honeypotController.js - ULTIMATE HINGLISH CHAMPION EDITION
-// 100% PURE HINGLISH - NO ENGLISH RESPONSES
-// LOCK TO EXIT MODE - NO REGRESSION AFTER ESCALATION
+// WITH REPETITION DETECTION + EMOTIONAL STATES + FIXED TURNCOUNT
 
 import axios from 'axios';
 
@@ -52,7 +51,7 @@ const PATTERNS = {
   sbi_official: /\b(?:1800[\s\-]?\d{3,4}[\s\-]?\d{4}|\b1800\d{7,10})\b/i,
   resend: /\b(?:resend|रेसेंड|दुबारा|फिर\s*से)\b/i,
   family: /\b(?:पापा|papa|मम्मी|mummy|भाई|bhai|बेटा|beta|पति|pati|पत्नी|wife|husband|बच्चे|children|cousin|friend)\b/i,
-  branch: /\b(?:branch|बैंक|शाखा|ऑफिस|office|near|पास|लोकेशन|location|home\s*branch)\b/i,
+  branch: /\b(?:branch|बैंक|शाखा|ऑफिस|office|near|पास|로केशन|location|home\s*branch)\b/i,
   cyber: /\b(?:cyber|crim|1930|complaint|report|पुलिस|साइबर)\b/i
 };
 
@@ -156,8 +155,8 @@ const REPLIES = {
     "Yeh theek nahi hai.",
     "Bank wale aise nahi karte.",
     "OTP maangna hi galat hai.",
-    "Mujhe OTP dene ka man nahi.",
-    "Yeh kya chal raha hai?"
+    "I never share OTP with anyone.",
+    "This is not safe."
   ],
   
   otp_2: [
@@ -259,9 +258,9 @@ const REPLIES = {
     "SBI khud bolta hai OTP mat do kisi ko.",
     "Maine TV pe dekha hai, aise hi fraud karte hain.",
     "Mere bank ne clearly bola hai - OTP kabhi mat do.",
-    "Yeh toh maine bhi padha hai RBI ke rules mein.",
+    "RBI clearly says banks never ask for OTP.",
     "Pata hai mujhe, bank OTP nahi maangte.",
-    "Aap mujhe OTP mat do, main nahi dunga."
+    "This is basic banking security."
   ],
   
   suspicion: [
@@ -384,12 +383,12 @@ const REPLIES = {
     "Maine apni branch ko inform kar diya hai.",
     "Main aapka number block kar raha hoon.",
     "Main branch verification ke bina kuch nahi kar sakta.",
-    "Main abhi SBI customer care call kar raha hoon.",
+    "I'm calling SBI customer care right now.",
     "Ab main branch ja raha hoon.",
     "Maine SBI ko inform kar diya hai.",
-    "Main branch jakar hi baat karunga.",
+    "I'm going to the branch now.",
     "Main branch ja raha hoon.",
-    "Maine apni branch ko sab bata diya hai."
+    "This conversation is over. Goodbye."
   ],
   
   fallback: [
@@ -612,21 +611,58 @@ class ReplyGenerator {
       return this.getRandomReply('branch');
     }
 
-    // ============ TRIGGER LOCK TO EXIT ============
+    // ============ SMARTER LOCK TRIGGER ============
     if (!session.lockToExit) {
       const shouldLock = 
+        session.pressureScore >= 2 ||
         session.otpRequests >= 4 ||
         session.threatCount >= 3 ||
-        detected.hasPermanent ||
-        detected.hasFine ||
-        detected.hasCyber ||
         session.turnCount >= 8;
       
       if (shouldLock) {
         session.lockToExit = true;
+        session.emotionLevel = 5;
       }
     }
 
+    // ============ REPETITION DETECTION RESPONSE ============
+    if (session.repetitionCount === 2) {
+      return "Aap same message copy paste kar rahe ho kya?";
+    }
+    if (session.repetitionCount === 3) {
+      return "Har baar same line bol rahe ho. Kya aap automated ho?";
+    }
+    if (session.repetitionCount >= 4) {
+      return "Lag raha hai aap script padh rahe ho.";
+    }
+
+    // ============ EMOTION-BASED RESPONSES ============
+    if (session.emotionLevel === 3) { // Irritated
+      if (detected.hasOTP) {
+        return this.getRandomReply('otp_3');
+      }
+      if (session.repetitionCount >= 2) {
+        const irritatedReplies = [
+          "Aap baar baar wahi baat kyun repeat kar rahe ho?",
+          "Maine sun liya, ab baar baar mat bolo.",
+          "Yeh copy paste band karo yaar.",
+          "Mujhe aapki baat repeat karni pad rahi hai."
+        ];
+        return irritatedReplies[Math.floor(Math.random() * irritatedReplies.length)];
+      }
+    }
+
+    if (session.emotionLevel === 4) { // Firm
+      const firmReplies = [
+        "Main OTP nahi dunga, chahe kuch bhi ho.",
+        "Aap mujhe dara nahi sakte.",
+        "Mera decision final hai.",
+        "Ab main kuch nahi karunga bina branch verification ke."
+      ];
+      if (Math.random() < 0.3) return firmReplies[Math.floor(Math.random() * firmReplies.length)];
+    }
+
+    // ============ EXISTING PRIORITY-BASED REPLIES ============
     if (detected.hasAccount && detected.accountNumber) {
       if (!session.accountQuestioned) {
         session.accountQuestioned = true;
@@ -635,6 +671,7 @@ class ReplyGenerator {
         return this.getReplyWithParam('account_second', '{account}', detected.accountNumber);
       }
     }
+    
     if (detected.hasUPI && detected.upiId) {
       if (!session.upiQuestioned) {
         session.upiQuestioned = true;
@@ -643,6 +680,7 @@ class ReplyGenerator {
         return this.getReplyWithParam('upi_second', '{upi}', detected.upiId);
       }
     }
+    
     if (detected.hasPhone && detected.phoneNumber) {
       session.phoneMentionCount = (session.phoneMentionCount || 0) + 1;
       if (session.phoneMentionCount === 1) {
@@ -653,6 +691,7 @@ class ReplyGenerator {
         return this.getReplyWithParam('phone_third', '{phone}', detected.phoneNumber);
       }
     }
+    
     if (detected.hasOTP) {
       session.otpRequests = (session.otpRequests || 0) + detected.otpRequestCount;
       if (detected.hasResend) {
@@ -661,9 +700,11 @@ class ReplyGenerator {
       const level = Math.min(session.otpRequests, 5);
       return this.getRandomReply(`otp_${level}`);
     }
+    
     if (detected.hasTollfree) return this.getRandomReply('tollfree');
     if (detected.hasPermanent) return this.getRandomReply('permanent');
     if (detected.hasFine) return this.getRandomReply('fine');
+    
     if (detected.hasThreat) {
       session.threatCount = (session.threatCount || 0) + 1;
       if (session.threatCount >= 3) {
@@ -671,38 +712,58 @@ class ReplyGenerator {
         return this.getRandomReply('cyber');
       }
     }
+    
     if (detected.hasAuthority && !session.authorityChallenged) {
       session.authorityChallenged = true;
       return this.getRandomReply('authority');
     }
+    
     if (detected.hasBranch) {
       session.lockToExit = true;
       return this.getRandomReply('branch');
     }
+    
     if (detected.hasFamily) return this.getRandomReply('family');
+    
     if (detected.hasCyber) {
       session.lockToExit = true;
       return this.getRandomReply('cyber');
     }
-    if (detected.hasLink) return "Main unknown links pe click nahi karta. Safe hai kya?";
-    if (detected.hasFakeOffer) return "Maine koi lottery nahi jiti. Fake lag raha hai.";
     
-    const turnCount = session.turnCount || 1;
-    session.turnCount = turnCount + 1;
+    if (detected.hasLink) {
+      const linkReplies = [
+        "Main unknown links pe click nahi karta. Safe hai kya?",
+        "I don't click on unknown links.",
+        "Yeh link safe hai?",
+        "This seems suspicious."
+      ];
+      return linkReplies[Math.floor(Math.random() * linkReplies.length)];
+    }
     
-    if (turnCount === 1) return this.getRandomReply('turn1');
-    if (turnCount === 2) return this.getRandomReply('turn2');
-    if (turnCount === 3) return this.getRandomReply('turn3');
-    if (turnCount === 4) return this.getRandomReply('suspicion');
-    if (turnCount === 5) return this.getRandomReply('policy');
-    if (turnCount === 6) return this.getRandomReply('otp_3');
-    if (turnCount === 7) return this.getRandomReply('otp_4');
-    if (turnCount === 8) {
+    if (detected.hasFakeOffer) {
+      const offerReplies = [
+        "Maine koi lottery nahi jiti.",
+        "I didn't win any lottery.",
+        "Yeh fake lag raha hai.",
+        "This is obviously fake."
+      ];
+      return offerReplies[Math.floor(Math.random() * offerReplies.length)];
+    }
+    
+    // ============ TURN-BASED PROGRESSION ============
+    if (session.turnCount === 1) return this.getRandomReply('turn1');
+    if (session.turnCount === 2) return this.getRandomReply('turn2');
+    if (session.turnCount === 3) return this.getRandomReply('turn3');
+    if (session.turnCount === 4) return this.getRandomReply('suspicion');
+    if (session.turnCount === 5) return this.getRandomReply('policy');
+    if (session.turnCount === 6) return this.getRandomReply('otp_3');
+    if (session.turnCount === 7) return this.getRandomReply('otp_4');
+    if (session.turnCount === 8) {
       session.lockToExit = true;
       return this.getRandomReply('branch');
     }
-    if (turnCount === 9) return this.getRandomReply('cyber');
-    if (turnCount >= 10) return this.getRandomReply('exit');
+    if (session.turnCount === 9) return this.getRandomReply('cyber');
+    if (session.turnCount >= 10) return this.getRandomReply('exit');
     
     return this.getRandomReply('fallback');
   }
@@ -758,7 +819,7 @@ class CallbackService {
     if (intelligence.suspiciousKeywords.includes('phishing_link')) tactics.push('phishing');
     if (intelligence.suspiciousKeywords.includes('fake_offer')) tactics.push('fake offer');
     const tacticsText = tactics.length > 0 ? tactics.join(', ') : 'multiple scam tactics';
-    return `Scammer used ${tacticsText}. Extracted ${intelligence.bankAccounts.length} bank accounts, ${intelligence.upiIds.length} UPI IDs, ${intelligence.phoneNumbers.length} phone numbers, ${intelligence.phishingLinks.length} phishing links. Engaged for ${session.conversationHistory.length} total messages.`;
+    return `Scammer used ${tacticsText}. Extracted ${intelligence.bankAccounts.length} bank accounts, ${intelligence.upiIds.length} UPI IDs, ${intelligence.phoneNumbers.length} phone numbers, ${intelligence.phishingLinks.length} phishing links. Engaged for ${session.conversationHistory.length} total messages. Repetition: ${session.repetitionCount}, Emotion: ${session.emotionLevel}`;
   }
   
   static shouldEndSession(session) {
@@ -800,9 +861,14 @@ export const honey_pot = async (req, res) => {
         otpRequests: 0,
         threatCount: 0,
         phoneMentionCount: 0,
-        turnCount: 1,
+        turnCount: 0,
         metadata: metadata,
-        lockToExit: false
+        lockToExit: false,
+        // ============ NEW STATE VARIABLES ============
+        lastScammerMessage: '',
+        repetitionCount: 0,
+        emotionLevel: 0,
+        pressureScore: 0
       });
     }
     const session = sessions.get(sessionId);
@@ -811,16 +877,52 @@ export const honey_pot = async (req, res) => {
       text: message.text,
       timestamp: message.timestamp || Date.now()
     });
+    
+    // ============ REPETITION DETECTION ============
+    if (session.lastScammerMessage === message.text) {
+      session.repetitionCount++;
+    } else {
+      session.repetitionCount = 0;
+    }
+    session.lastScammerMessage = message.text;
+    
     const detected = KeywordDetector.detectKeywords(message.text);
     const hasKeywords = KeywordDetector.hasAnyKeyword(detected);
     const riskScore = KeywordDetector.calculateRiskScore(detected);
     IntelligenceExtractor.extractFromText(message.text, session.intelligence);
+    
+    // ============ UPDATE PRESSURE SCORE ============
+    session.pressureScore = 
+      (session.otpRequests >= 3 ? 1 : 0) +
+      (session.threatCount >= 2 ? 1 : 0) +
+      (detected.hasPermanent ? 1 : 0) +
+      (detected.hasFine ? 1 : 0) +
+      (detected.hasCyber ? 1 : 0) +
+      (session.repetitionCount >= 2 ? 1 : 0);
+    
+    // ============ UPDATE EMOTION LEVEL ============
+    if (session.lockToExit) {
+      session.emotionLevel = 5;
+    } else if (session.pressureScore >= 3 || session.otpRequests >= 4 || session.threatCount >= 3) {
+      session.emotionLevel = 4;
+    } else if (session.otpRequests >= 2 || session.threatCount >= 2 || session.repetitionCount >= 2) {
+      session.emotionLevel = 3;
+    } else if (session.otpRequests >= 1 || session.threatCount >= 1 || detected.hasAccount) {
+      session.emotionLevel = 2;
+    } else if (session.turnCount >= 2) {
+      session.emotionLevel = 1;
+    } else {
+      session.emotionLevel = 0;
+    }
+    
     if (!session.scamDetected && riskScore >= CONFIG.SCAM_THRESHOLD) {
       session.scamDetected = true;
     }
+    
     let reply;
     const turnCount = session.conversationHistory.filter(m => m.sender === 'user').length + 1;
     const isEarlyTurn = turnCount <= CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX;
+    
     if (CONFIG.USE_PERPLEXITY && !hasKeywords && isEarlyTurn) {
       try {
         reply = await PerplexityService.getReply(message.text, session.conversationHistory);
@@ -828,18 +930,25 @@ export const honey_pot = async (req, res) => {
         reply = null;
       }
     }
+    
     if (!reply) {
       reply = ReplyGenerator.generateReply(detected, session);
     }
+    
     session.conversationHistory.push({
       sender: 'user',
       text: reply,
       timestamp: Date.now()
     });
+    
+    // ============ FIXED TURNCOUNT INCREMENT ============
+    session.turnCount++;
+    
     if (CallbackService.shouldEndSession(session)) {
       await CallbackService.sendFinalResult(sessionId, session);
       sessions.delete(sessionId);
     }
+    
     return res.json({ status: 'success', reply: reply });
   } catch (error) {
     return res.json({
