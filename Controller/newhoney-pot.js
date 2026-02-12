@@ -1,7 +1,7 @@
 // controllers/honeypotController.js - STRATEGIC INTELLIGENCE EXTRACTION ENGINE
 // 100% DETERMINISTIC - NO RANDOMNESS
 // PERPLEXITY CATEGORY SELECTION - NOT GENERATION
-// NORMALIZATION LAYER - HANDLES OBFUSCATION
+// OPTIMIZED PHASE CONTROL - NO EARLY EXIT
 
 import axios from 'axios';
 
@@ -9,8 +9,8 @@ const sessions = new Map();
 
 const CONFIG = {
   SCAM_THRESHOLD: 45,
-  MIN_TURNS: 10,
-  MAX_TURNS: 18,
+  MIN_TURNS: 12,
+  MAX_TURNS: 20,
   CALLBACK_URL: 'https://hackathon.guvi.in/api/updateHoneyPotFinalResult',
   CALLBACK_TIMEOUT: 5000,
   USE_PERPLEXITY: true,
@@ -27,30 +27,24 @@ const CONFIG = {
 function normalizeText(text) {
   let normalized = text.toLowerCase();
   
-  // Remove extra spaces
   normalized = normalized.replace(/\s+/g, ' ').trim();
   
-  // Handle obfuscated OTP patterns
   normalized = normalized.replace(/o\.?t\.?p/gi, 'otp');
   normalized = normalized.replace(/0tp/gi, 'otp');
   normalized = normalized.replace(/o tp/gi, 'otp');
   
-  // Handle obfuscated UPI patterns
   normalized = normalized.replace(/u\.?p\.?i/gi, 'upi');
   normalized = normalized.replace(/u pi/gi, 'upi');
   
-  // Handle obfuscated account patterns
   normalized = normalized.replace(/a\/c/gi, 'account');
   normalized = normalized.replace(/acct/gi, 'account');
   normalized = normalized.replace(/accnt/gi, 'account');
   normalized = normalized.replace(/अकाउंट/gi, 'account');
   normalized = normalized.replace(/खाता/gi, 'account');
   
-  // Handle obfuscated phone patterns
   normalized = normalized.replace(/ph\.?n\.?/gi, 'phone');
   normalized = normalized.replace(/mob\.?/gi, 'mobile');
   
-  // Handle obfuscated bank names
   normalized = normalized.replace(/s\.?b\.?i/gi, 'sbi');
   normalized = normalized.replace(/एसबीआई/gi, 'sbi');
   
@@ -76,7 +70,6 @@ function calculateWordOverlap(text1, text2) {
 function getDeterministicReply(replies, session, key) {
   if (!replies || replies.length === 0) return "Mujhe samajh nahi aaya, thoda aur batao.";
   
-  // Pure deterministic index - NO Math.random(), NO Date.now()
   const index = (session.turnCount + session.repetitionCount + session.otpRequests) % replies.length;
   return replies[index];
 }
@@ -175,6 +168,7 @@ class PerplexityCategorySelector {
     return getDeterministicReply(replies, session, category);
   }
 }
+
 const PATTERNS = {
   otp: /\b(?:otp|one\s*time\s*(?:password|pin|code)|verification\s*code|security\s*code|6[-\s]*digit\s*cod|6[-\s]*digit\s*otp)\b/i,
   otp_hindi: /\b(?:ओटीपी|ओ टी पी|ओटीपी\s*कोड|वेरिफिकेशन\s*कोड|otp|ओटीपी)\b/i,
@@ -216,7 +210,19 @@ const PATTERNS = {
   ifsc: /\b[A-Z]{4}0[A-Z0-9]{6}\b/i,
   case_reference: /\b(?:case ref|reference no|complaint id|ticket id|sr no)\b/i
 };
+
+// ==============================================
+// OPTIMIZED PHASE-CONTROLLED REPLIES
+// Phase 1: Confusion (Turns 1-3)
+// Phase 2: Curiosity (Turns 4-6)
+// Phase 3: Intelligence Extraction (Turns 7-12)
+// Phase 4: Deep Validation (Turns 13-16)
+// Phase 5: Controlled Exit (Turns 17-20)
+// ==============================================
+
 const REPLIES = {
+  // ============ PHASE 1: CONFUSION (Turns 1-3) ============
+  // Calm, cooperative, no aggression
   turn1: [
     "Mera account block kyun ho raha hai? Maine koi unusual transaction nahi kiya.",
     "Aap kaunse bank se bol rahe ho exactly?",
@@ -234,29 +240,33 @@ const REPLIES = {
   ],
   
   turn3: [
-    "Aap kaunse department se ho? Fraud prevention ya customer care?",
-    "Aapka employee ID kya hai? Main verify kar lunga.",
-    "Kaunsi branch se call kar rahe ho? Branch code kya hai?",
-    "Aapka naam aur designation bata sakte ho?",
-    "Official bank domain se email bhej sakte ho?"
+    "Mujhe thoda clarify karo, yeh transaction mere statement mein kyun nahi dikh raha?",
+    "Kya aap branch se verify kar sakte ho ki yeh transaction genuine hai?",
+    "Main online banking check kar raha hoon, koi alert nahi aaya.",
+    "Yeh amount mere balance se match nahi kar raha.",
+    "Kya yeh transaction pending hai ya complete?"
   ],
-  
+
+  // ============ PHASE 2: CURIOSITY (Turns 4-6) ============
+  // Gentle probing, no direct authority challenge
   suspicion: [
-    "Kuch toh gadbad lag raha hai. Aapne apna employee ID nahi bataya.",
-    "Main branch ka naam puchha tha, aapne bataya nahi.",
-    "Official number 1800 hota hai, aap +91 kyun use kar rahe ho?",
-    "Mujhe laga bank kabhi phone pe OTP nahi maangta.",
-    "Yeh process thoda unusual lag raha hai."
+    "Thoda ajeeb lag raha hai yeh conversation.",
+    "Mujhe pata nahi, trust nahi ho raha abhi.",
+    "Aapka number kaise mila mujhe?",
+    "Main soch raha hoon, yeh sahi hai kya?",
+    "Kyunki pichle hafte mere friend ke saath bhi aise hi hua tha."
   ],
   
   policy: [
-    "RBI guidelines ke according banks OTP nahi maangte.",
-    "Mere bank ke T&C mein clearly likha hai - Never share OTP.",
-    "SBI ka official message aata hai 'OTP confidential hai'.",
+    "Maine suna hai bank kabhi OTP nahi maangte phone pe.",
+    "RBI guidelines ke according yeh process thoda unusual hai.",
+    "SBI ka official message aata hai 'Never share OTP'.",
     "Main TV pe bhi dekha hai, aise hi fraud karte hain.",
-    "Yeh basic banking security hai, aapko pata hona chahiye."
+    "Yeh basic banking security hai mujhe pata hai."
   ],
-  
+
+  // ============ PHASE 3: INTELLIGENCE EXTRACTION (Turns 7-12) ============
+  // Strategic questioning, extract maximum data
   account_first: [
     "Aapko mera account number kaise pata chala?",
     "{account} – yeh data aapke paas kahan se aaya?",
@@ -268,7 +278,7 @@ const REPLIES = {
   account_second: [
     "Aap baar baar yahi account number bhej rahe ho, confirm kar rahe ho kya?",
     "Mera account number {account} hai, par maine kabhi share nahi kiya.",
-    "Aapko account number pata hai, par main OTP nahi dunga.",
+    "Agar aapke system mein account number dikh raha hai toh last 4 digits kya hain?",
     "Account number sahi hai, par main verify kar lunga branch mein.",
     "Aapke paas account number hai, bas itna kaafi hai verification ke liye?"
   ],
@@ -314,17 +324,48 @@ const REPLIES = {
   ],
   
   authority: [
-    "Aapka employee ID aur branch code kya hai?",
-    "Main aapka ID internal system mein verify karna chahta hoon.",
-    "Official bank domain se email bhej sakte ho?",
-    "Aapka reporting manager ka naam kya hai?",
-    "Kaunsi branch se call kar rahe ho aur branch manager ka naam?",
-    "Employee ID ka internal extension kya hai?",
-    "Branch ka IFSC code kya hai?",
-    "Is call ka case reference number kya hai?",
-    "Complaint ID generate hui hai kya?"
+    "Aapka employee ID kya hai? Main verify kar lunga.",
+    "Aap kaunse department se ho? Fraud prevention ya customer care?",
+    "Kaunsi branch se call kar rahe ho?",
+    "Aapka naam aur designation kya hai?",
+    "Official bank domain se email bhej sakte ho?"
+  ],
+
+  // ============ DEEP VALIDATION PHASE (Turns 13-16) ============
+  // Force scammer to reveal more data before exit
+  employee_validation: [
+    "Employee ID 12345 hai, iska internal extension kya hai?",
+    "Aapke employee ID ka department code kya hai?",
+    "Employee ID ke saath branch code bhi batao.",
+    "Yeh employee ID ka format SBI jaisa nahi hai.",
+    "Employee ID verify karne ke liye manager ka naam batao."
   ],
   
+  ifsc_validation: [
+    "Branch code 001 ka IFSC code kya hai?",
+    "IFSC code confirm karo, main verify karunga.",
+    "Aapki branch ka IFSC code SBI website se match nahi kar raha.",
+    "IFSC code mein branch code kya hai?",
+    "IFSC code ke last 6 digits batao."
+  ],
+  
+  account_validation: [
+    "Aapka system account number show karta hai toh last 4 digits batao.",
+    "Account number {account} hai, account type kya show ho raha hai?",
+    "Is account ki last transaction date kya hai?",
+    "Account balance range kya show ho raha hai?",
+    "Account open date batao, main check karunga."
+  ],
+  
+  case_validation: [
+    "Is complaint ka case reference number kya hai?",
+    "Case reference number generate hua hai kya?",
+    "Complaint ID batao, main track kar sakta hoon.",
+    "Ticket ID kya hai?",
+    "SR number kya diya gaya hai is call ke liye?"
+  ],
+
+  // ============ OTP RESPONSES - PROGRESSIVE ============
   otp_1: [
     "OTP normally confidential hota hai, aap kyun maang rahe ho?",
     "Bank usually OTP phone pe nahi maangta.",
@@ -386,17 +427,7 @@ const REPLIES = {
     "Aap branch ka address bhejo, main abhi aata hoon.",
     "Meri home branch Andheri West mein hai, wahan jau?",
     "Branch manager se baat karni hai, unka naam kya hai?",
-    "Main branch jakar hi verification karunga.",
-    "Branch ka IFSC code kya hai?",
-    "Branch manager ka extension number kya hai?"
-  ],
-  
-  cyber: [
-    "Main isko cyber crime portal pe verify karunga.",
-    "1930 pe complaint register kar raha hoon.",
-    "Main branch aur cyber cell dono ko inform karunga.",
-    "Mujhe lag raha hai yeh official process nahi hai.",
-    "Main verification ke bina koi data share nahi karunga."
+    "Main branch jakar hi verification karunga."
   ],
   
   permanent: [
@@ -439,12 +470,22 @@ const REPLIES = {
     "Mere cousin ne kaha aise calls ignore karne ka."
   ],
   
+  cyber: [
+    "Main isko cyber crime portal pe verify karunga.",
+    "1930 pe complaint register kar raha hoon.",
+    "Main branch aur cyber cell dono ko inform karunga.",
+    "Mujhe lag raha hai yeh official process nahi hai.",
+    "Main verification ke bina koi data share nahi karunga."
+  ],
+  
+  // ============ CONTROLLED EXIT PHASE (Turns 17-20) ============
+  // Clean, professional, confident shutdown
   exit: [
-    "Main official branch verification ke bina proceed nahi karunga.",
-    "Main directly bank customer care se contact karunga.",
-    "Is conversation ko yahin end karte hain.",
-    "Thank you, main branch visit kar raha hoon.",
-    "I will verify this through official channels only."
+    "Main SBI ke official 1800 number pe abhi call kar raha hoon. Agar genuine ho toh wahan se call back karo.",
+    "Main branch visit kar raha hoon aur wahan complaint register karunga.",
+    "Main cyber cell aur bank dono ko inform kar dunga. Aap apna number verify kara lo.",
+    "Is conversation ko yahin end karte hain. Main official channel se verify karunga.",
+    "Thank you for the information. Main SBI customer care se confirm kar lunga."
   ],
   
   fallback: [
@@ -468,7 +509,10 @@ class IntelligenceExtractor {
       branchCodes: [],
       designations: [],
       ifscCodes: [],
-      caseReferences: []
+      caseReferences: [],
+      accountLast4: [],
+      transactionDates: [],
+      accountTypes: []
     };
   }
 
@@ -496,25 +540,36 @@ class IntelligenceExtractor {
     const normalizedText = normalizeText(text);
     const originalText = text;
     
-    // Bank accounts
     const accounts16 = originalText.match(/\b\d{16}\b/g);
     if (accounts16) {
       accounts16.forEach(acc => {
         if (!intelligence.bankAccounts.includes(acc)) {
           intelligence.bankAccounts.push(acc);
           console.log(`✅ Extracted Bank Account (16-digit): ${acc}`);
+          
+          const last4 = acc.slice(-4);
+          if (!intelligence.accountLast4.includes(last4)) {
+            intelligence.accountLast4.push(last4);
+          }
         }
       });
     }
+    
     const accounts12_15 = originalText.match(/\b\d{12,15}\b/g);
     if (accounts12_15) {
       accounts12_15.forEach(acc => {
         if (!intelligence.bankAccounts.includes(acc)) {
           intelligence.bankAccounts.push(acc);
           console.log(`✅ Extracted Bank Account: ${acc}`);
+          
+          const last4 = acc.slice(-4);
+          if (!intelligence.accountLast4.includes(last4)) {
+            intelligence.accountLast4.push(last4);
+          }
         }
       });
     }
+    
     const formatted = originalText.match(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g);
     if (formatted) {
       formatted.forEach(acc => {
@@ -522,11 +577,15 @@ class IntelligenceExtractor {
         if (!intelligence.bankAccounts.includes(clean)) {
           intelligence.bankAccounts.push(clean);
           console.log(`✅ Extracted Bank Account (formatted): ${clean}`);
+          
+          const last4 = clean.slice(-4);
+          if (!intelligence.accountLast4.includes(last4)) {
+            intelligence.accountLast4.push(last4);
+          }
         }
       });
     }
     
-    // UPI IDs
     const upis = originalText.match(/[\w.\-]+@[\w.\-]+/gi);
     if (upis) {
       upis.forEach(upi => {
@@ -538,7 +597,6 @@ class IntelligenceExtractor {
       });
     }
     
-    // Phone numbers
     const phones = originalText.match(/\b[6-9]\d{9}\b/g);
     if (phones) {
       phones.forEach(phone => {
@@ -548,6 +606,7 @@ class IntelligenceExtractor {
         }
       });
     }
+    
     const phones91 = originalText.match(/\+91\s*([6-9]\d{9})\b/g);
     if (phones91) {
       phones91.forEach(phone => {
@@ -559,7 +618,6 @@ class IntelligenceExtractor {
       });
     }
     
-    // Links
     const links = originalText.match(PATTERNS.link);
     if (links) {
       links.forEach(link => {
@@ -571,7 +629,6 @@ class IntelligenceExtractor {
       });
     }
     
-    // IFSC Codes
     const ifscCodes = originalText.match(PATTERNS.ifsc);
     if (ifscCodes) {
       ifscCodes.forEach(code => {
@@ -582,7 +639,6 @@ class IntelligenceExtractor {
       });
     }
     
-    // Employee IDs, Branch Codes, Designations
     const empIds = originalText.match(/\b[A-Z0-9]{4,10}\b/g);
     if (empIds) {
       empIds.forEach(id => {
@@ -603,7 +659,6 @@ class IntelligenceExtractor {
       });
     }
     
-    // Case References
     const caseRefs = originalText.match(/\b(?:[A-Z]+)?\d{6,12}\b/g);
     if (caseRefs) {
       caseRefs.forEach(ref => {
@@ -614,7 +669,16 @@ class IntelligenceExtractor {
       });
     }
     
-    // Keywords
+    const datePatterns = originalText.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g);
+    if (datePatterns) {
+      datePatterns.forEach(date => {
+        if (!intelligence.transactionDates.includes(date)) {
+          intelligence.transactionDates.push(date);
+          console.log(`✅ Extracted Date: ${date}`);
+        }
+      });
+    }
+    
     if (PATTERNS.otp.test(originalText) || PATTERNS.otp_hindi.test(originalText) || normalizedText.includes('otp')) 
       intelligence.suspiciousKeywords.push('otp_request');
     if (PATTERNS.pin.test(originalText)) 
@@ -759,24 +823,26 @@ class KeywordDetector {
 
 class ReplyGenerator {
   static generateReply(detected, session) {
-    // ============ LOCK TO EXIT MODE ============
+    // ============ LOCK TO EXIT MODE - DELAYED ============
+    // Only lock after deep validation phase
     if (session.lockToExit) {
-      if (session.turnCount >= 15) return getDeterministicReply(REPLIES.exit, session, 'exit');
+      if (session.turnCount >= 17) return getDeterministicReply(REPLIES.exit, session, 'exit');
       if (detected.hasCyber || detected.hasBranch) return getDeterministicReply(REPLIES.cyber, session, 'cyber');
       return getDeterministicReply(REPLIES.branch, session, 'branch');
     }
 
-    // ============ SMARTER LOCK TRIGGER ============
+    // ============ SMARTER LOCK TRIGGER - DELAYED EXIT ============
     if (!session.lockToExit) {
       const shouldLock = 
-        session.pressureScore >= 3 ||
-        session.otpRequests >= 5 ||
-        session.threatCount >= 4 ||
+        session.pressureScore >= 4 &&
+        session.otpRequests >= 5 &&
+        session.threatCount >= 5 &&
         session.turnCount >= 14;
       
       if (shouldLock) {
         session.lockToExit = true;
         session.emotionLevel = 5;
+        console.log(`🔒 Lock to Exit triggered at turn ${session.turnCount}`);
       }
     }
 
@@ -788,49 +854,95 @@ class ReplyGenerator {
       return "Har baar same line bol rahe ho. Kya aap automated ho?";
     }
     if (session.repetitionCount >= 4) {
-      return "Lag raha hai aap script padh rahe ho. Dobara mat bhejo.";
+      return "Lag raha hai aap script padh rahe ho. Case reference number generate hua hai kya?";
     }
 
-    // ============ INTELLIGENCE EXTRACTION PRIORITY ============
-    if (detected.hasAccount && detected.accountNumber && !session.accountQuestioned) {
-      session.accountQuestioned = true;
-      return getDeterministicReply(REPLIES.account_first.map(r => r.replace('{account}', detected.accountNumber)), session, 'account_first');
+    // ============ PHASE 1: CONFUSION (Turns 1-3) ============
+    if (session.turnCount <= 3) {
+      if (session.turnCount === 1) return getDeterministicReply(REPLIES.turn1, session, 'turn1');
+      if (session.turnCount === 2) return getDeterministicReply(REPLIES.turn2, session, 'turn2');
+      if (session.turnCount === 3) return getDeterministicReply(REPLIES.turn3, session, 'turn3');
     }
-    
-    if (detected.hasUPI && detected.upiId && !session.upiQuestioned) {
-      session.upiQuestioned = true;
-      return getDeterministicReply(REPLIES.upi_first.map(r => r.replace('{upi}', detected.upiId)), session, 'upi_first');
-    }
-    
-    if (detected.hasUPI && detected.upiId && session.upiQuestioned && session.upiMentionCount < 2) {
-      session.upiMentionCount = (session.upiMentionCount || 0) + 1;
-      return getDeterministicReply(REPLIES.upi_second.map(r => r.replace('{upi}', detected.upiId)), session, 'upi_second');
-    }
-    
-    if (detected.hasPhone && detected.phoneNumber) {
-      session.phoneMentionCount = (session.phoneMentionCount || 0) + 1;
-      if (session.phoneMentionCount === 1) {
-        return getDeterministicReply(REPLIES.phone_first.map(r => r.replace('{phone}', detected.phoneNumber)), session, 'phone_first');
-      } else if (session.phoneMentionCount === 2) {
-        return getDeterministicReply(REPLIES.phone_second.map(r => r.replace('{phone}', detected.phoneNumber)), session, 'phone_second');
-      } else {
-        return getDeterministicReply(REPLIES.phone_third.map(r => r.replace('{phone}', detected.phoneNumber)), session, 'phone_third');
+
+    // ============ PHASE 2: CURIOSITY (Turns 4-6) ============
+    if (session.turnCount >= 4 && session.turnCount <= 6) {
+      if (session.turnCount === 4) return getDeterministicReply(REPLIES.suspicion, session, 'suspicion');
+      if (session.turnCount === 5) return getDeterministicReply(REPLIES.policy, session, 'policy');
+      if (session.turnCount === 6) {
+        if (detected.hasOTP) {
+          session.otpRequests = (session.otpRequests || 0) + detected.otpRequestCount;
+          return getDeterministicReply(REPLIES.otp_1, session, 'otp_1');
+        }
+        return getDeterministicReply(REPLIES.policy, session, 'policy');
       }
     }
-    
-    if (detected.hasAuthority && !session.authorityChallenged) {
-      session.authorityChallenged = true;
-      return getDeterministicReply(REPLIES.authority, session, 'authority');
+
+    // ============ PHASE 3: INTELLIGENCE EXTRACTION (Turns 7-12) ============
+    if (session.turnCount >= 7 && session.turnCount <= 12) {
+      
+      // Priority 1: Extract Account Information
+      if (detected.hasAccount && detected.accountNumber && !session.accountQuestioned) {
+        session.accountQuestioned = true;
+        return getDeterministicReply(REPLIES.account_first.map(r => r.replace('{account}', detected.accountNumber)), session, 'account_first');
+      }
+      
+      // Priority 2: Extract UPI Information
+      if (detected.hasUPI && detected.upiId && !session.upiQuestioned) {
+        session.upiQuestioned = true;
+        return getDeterministicReply(REPLIES.upi_first.map(r => r.replace('{upi}', detected.upiId)), session, 'upi_first');
+      }
+      
+      if (detected.hasUPI && detected.upiId && session.upiQuestioned && session.upiMentionCount < 2) {
+        session.upiMentionCount = (session.upiMentionCount || 0) + 1;
+        return getDeterministicReply(REPLIES.upi_second.map(r => r.replace('{upi}', detected.upiId)), session, 'upi_second');
+      }
+      
+      // Priority 3: Extract Phone Information
+      if (detected.hasPhone && detected.phoneNumber) {
+        session.phoneMentionCount = (session.phoneMentionCount || 0) + 1;
+        if (session.phoneMentionCount === 1) {
+          return getDeterministicReply(REPLIES.phone_first.map(r => r.replace('{phone}', detected.phoneNumber)), session, 'phone_first');
+        } else if (session.phoneMentionCount === 2) {
+          return getDeterministicReply(REPLIES.phone_second.map(r => r.replace('{phone}', detected.phoneNumber)), session, 'phone_second');
+        } else {
+          return getDeterministicReply(REPLIES.phone_third.map(r => r.replace('{phone}', detected.phoneNumber)), session, 'phone_third');
+        }
+      }
+      
+      // Priority 4: Authority Challenge (Not too early)
+      if (detected.hasAuthority && !session.authorityChallenged && session.turnCount >= 8) {
+        session.authorityChallenged = true;
+        return getDeterministicReply(REPLIES.authority, session, 'authority');
+      }
     }
-    
-    if (detected.hasIFSC) {
-      return "Aapka IFSC code kya hai? Main verify karunga.";
+
+    // ============ PHASE 4: DEEP VALIDATION (Turns 13-16) ============
+    if (session.turnCount >= 13 && session.turnCount <= 16) {
+      
+      // Force scammer to validate account with last 4 digits
+      if (detected.hasAccount && detected.accountNumber && session.accountQuestioned) {
+        return getDeterministicReply(REPLIES.account_validation, session, 'account_validation');
+      }
+      
+      // Force scammer to provide IFSC code
+      if (detected.hasBranchCode && !session.ifscValidated) {
+        session.ifscValidated = true;
+        return getDeterministicReply(REPLIES.ifsc_validation, session, 'ifsc_validation');
+      }
+      
+      // Force scammer to provide case reference
+      if (session.threatCount >= 3 && !session.caseValidated) {
+        session.caseValidated = true;
+        return getDeterministicReply(REPLIES.case_validation, session, 'case_validation');
+      }
+      
+      // Validate employee ID
+      if (detected.hasEmployeeID && !session.employeeValidated) {
+        session.employeeValidated = true;
+        return getDeterministicReply(REPLIES.employee_validation, session, 'employee_validation');
+      }
     }
-    
-    if (detected.hasCaseReference) {
-      return "Case reference number kya hai? Main check karta hoon.";
-    }
-    
+
     // ============ PROGRESSIVE OTP RESPONSES ============
     if (detected.hasOTP) {
       session.otpRequests = (session.otpRequests || 0) + detected.otpRequestCount;
@@ -852,6 +964,7 @@ class ReplyGenerator {
       }
     }
     
+    // ============ THREAT RESPONSES ============
     if (detected.hasPermanent) {
       return getDeterministicReply(REPLIES.permanent, session, 'permanent');
     }
@@ -862,12 +975,9 @@ class ReplyGenerator {
     
     if (detected.hasThreat) {
       session.threatCount = (session.threatCount || 0) + 1;
-      if (session.threatCount >= 3) {
-        session.lockToExit = true;
-        return getDeterministicReply(REPLIES.cyber, session, 'cyber');
-      }
     }
     
+    // ============ OTHER DETECTIONS ============
     if (detected.hasTollfree) return getDeterministicReply(REPLIES.tollfree, session, 'tollfree');
     if (detected.hasBranch) return getDeterministicReply(REPLIES.branch, session, 'branch');
     if (detected.hasFamily) return getDeterministicReply(REPLIES.family, session, 'family');
@@ -878,18 +988,7 @@ class ReplyGenerator {
     if (detected.hasLink) return getDeterministicReply(REPLIES.link, session, 'link');
     if (detected.hasFakeOffer) return getDeterministicReply(REPLIES.fake_offer, session, 'fake_offer');
     
-    // ============ TURN-BASED PROGRESSION ============
-    if (session.turnCount === 1) return getDeterministicReply(REPLIES.turn1, session, 'turn1');
-    if (session.turnCount === 2) return getDeterministicReply(REPLIES.turn2, session, 'turn2');
-    if (session.turnCount === 3) return getDeterministicReply(REPLIES.turn3, session, 'turn3');
-    if (session.turnCount === 4) return getDeterministicReply(REPLIES.suspicion, session, 'suspicion');
-    if (session.turnCount === 5) return getDeterministicReply(REPLIES.policy, session, 'policy');
-    if (session.turnCount === 6) return getDeterministicReply(REPLIES.otp_3, session, 'otp_3');
-    if (session.turnCount === 7) return getDeterministicReply(REPLIES.otp_4, session, 'otp_4');
-    if (session.turnCount === 8) return getDeterministicReply(REPLIES.branch, session, 'branch');
-    if (session.turnCount === 9) return getDeterministicReply(REPLIES.cyber, session, 'cyber');
-    if (session.turnCount === 10) return getDeterministicReply(REPLIES.exit, session, 'exit');
-    
+    // ============ FALLBACK ============
     return getDeterministicReply(REPLIES.fallback, session, 'fallback');
   }
 }
@@ -950,7 +1049,8 @@ class CallbackService {
            `${intelligence.phoneNumbers.length} phone numbers, ` +
            `${intelligence.phishingLinks.length} phishing links, ` +
            `${intelligence.employeeIDs?.length || 0} employee IDs, ` +
-           `${intelligence.ifscCodes?.length || 0} IFSC codes. ` +
+           `${intelligence.ifscCodes?.length || 0} IFSC codes, ` +
+           `${intelligence.caseReferences?.length || 0} case references. ` +
            `Engaged for ${session.conversationHistory.length} messages. ` +
            `Repetition: ${session.repetitionCount}, Emotion: ${session.emotionLevel}`;
   }
@@ -971,11 +1071,12 @@ class CallbackService {
         (intel.phoneNumbers?.length || 0) +
         (intel.phishingLinks?.length || 0) +
         (intel.employeeIDs?.length || 0) +
-        (intel.ifscCodes?.length || 0);
+        (intel.ifscCodes?.length || 0) +
+        (intel.caseReferences?.length || 0);
       
-      if (intelligenceCount >= 3 && turnCount >= 8) return true;
-      if (intel.suspiciousKeywords?.length >= 10 && turnCount >= 7) return true;
-      if (turnCount >= 15) return true;
+      if (intelligenceCount >= 5 && turnCount >= 15) return true;
+      if (intel.suspiciousKeywords?.length >= 12 && turnCount >= 12) return true;
+      if (turnCount >= 18) return true;
     }
     return false;
   }
@@ -998,9 +1099,13 @@ export const honey_pot = async (req, res) => {
         conversationHistory: [],
         intelligence: IntelligenceExtractor.createEmptyStore(),
         accountQuestioned: false,
+        accountValidated: false,
         upiQuestioned: false,
         upiMentionCount: 0,
         authorityChallenged: false,
+        ifscValidated: false,
+        caseValidated: false,
+        employeeValidated: false,
         otpRequests: 0,
         threatCount: 0,
         phoneMentionCount: 0,
@@ -1023,7 +1128,6 @@ export const honey_pot = async (req, res) => {
       timestamp: message.timestamp || Date.now()
     });
     
-    // ============ NORMALIZATION & SEMANTIC REPETITION DETECTION ============
     const normalizedMessage = normalizeText(message.text);
     
     if (session.lastScammerNormalized) {
@@ -1046,7 +1150,7 @@ export const honey_pot = async (req, res) => {
     
     session.pressureScore = 
       (session.otpRequests >= 3 ? 1 : 0) +
-      (session.threatCount >= 2 ? 1 : 0) +
+      (session.threatCount >= 3 ? 1 : 0) +
       (detected.hasPermanent ? 1 : 0) +
       (detected.hasFine ? 1 : 0) +
       (detected.hasCyber ? 1 : 0) +
@@ -1058,7 +1162,7 @@ export const honey_pot = async (req, res) => {
     
     if (session.lockToExit) {
       session.emotionLevel = 5;
-    } else if (session.pressureScore >= 4 || session.otpRequests >= 5 || session.threatCount >= 4) {
+    } else if (session.pressureScore >= 5 && session.otpRequests >= 5 && session.threatCount >= 5) {
       session.emotionLevel = 4;
     } else if (session.otpRequests >= 3 || session.threatCount >= 3 || session.repetitionCount >= 3) {
       session.emotionLevel = 3;
@@ -1079,7 +1183,6 @@ export const honey_pot = async (req, res) => {
     const turnCount = session.conversationHistory.filter(m => m.sender === 'user').length + 1;
     const isEarlyTurn = turnCount <= CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX;
     
-    // ============ PERPLEXITY CATEGORY SELECTION - NOT GENERATION ============
     if (CONFIG.USE_PERPLEXITY && !hasKeywords && isEarlyTurn) {
       try {
         const category = await PerplexityCategorySelector.selectCategory(message.text, session.conversationHistory);
@@ -1103,7 +1206,7 @@ export const honey_pot = async (req, res) => {
     session.turnCount++;
     
     if (CallbackService.shouldEndSession(session)) {
-      console.log(`\n🏁 Session ${sessionId} ending - Intelligence count: ${session.intelligence.bankAccounts.length + session.intelligence.upiIds.length + session.intelligence.phoneNumbers.length}`);
+      console.log(`\n🏁 Session ${sessionId} ending - Intelligence count: ${session.intelligence.bankAccounts.length + session.intelligence.upiIds.length + session.intelligence.phoneNumbers.length + session.intelligence.employeeIDs?.length + session.intelligence.ifscCodes?.length + session.intelligence.caseReferences?.length}`);
       await CallbackService.sendFinalResult(sessionId, session);
       sessions.delete(sessionId);
     }
