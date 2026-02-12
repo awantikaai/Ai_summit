@@ -1,6 +1,4 @@
-// controllers/honeypotController.js - HYBRID HINGLISH CHAMPIONSHIP EDITION
-// Deterministic core + Perplexity AI for subtle social engineering
-// 100% natural Hinglish, zero detection phrases, never repeats
+// controllers/honeypotController.js - FIXED INTELLIGENCE EXTRACTION & HUMANIZED REPLIES
 
 import axios from 'axios';
 
@@ -16,22 +14,11 @@ const CONFIG = {
   SCAM_THRESHOLD: 40,
   MIN_TURNS: 8,
   MAX_TURNS: 14,
-  CALLBACK_URL: 'https://hackathon.guvi.in/api/updateHoneyPotFinalResult',
-  
-  // ============ PERPLEXITY AI CONFIG ============
-  USE_PERPLEXITY: true,              // Set to false for pure deterministic
-  PERPLEXITY_API_KEY: 'YOUR_API_KEY_HERE', // Add your Perplexity API key
-  PERPLEXITY_URL: 'https://api.perplexity.ai/chat/completions',
-  PERPLEXITY_TIMEOUT: 3000,
-  
-  // When to trigger Perplexity (low-signal social engineering)
-  PERPLEXITY_TRIGGER_RISK_MIN: 20,
-  PERPLEXITY_TRIGGER_RISK_MAX: 45,
-  PERPLEXITY_TRIGGER_TURNS_MAX: 4   // Only use in early turns
+  CALLBACK_URL: 'https://hackathon.guvi.in/api/updateHoneyPotFinalResult'
 };
 
 // ==============================================
-// COMPREHENSIVE HINGLISH PATTERNS - FIXED UPI
+// FIXED: COMPREHENSIVE HINGLISH PATTERNS
 // ==============================================
 const PATTERNS = {
   // Credential harvesting - HINGLISH
@@ -41,14 +28,18 @@ const PATTERNS = {
   password: /\b(?:password|passcode|login\s*details|internet\s*banking\s*password)\b/i,
   cvv: /\b(?:cvv|cvc|security\s*number|card\s*verification)\b/i,
   
-  // Account related
-  account: /\b(?:\d{9,18}|\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b/,
-  account_number: /\b(?:account|खाता|अकाउंट|खाता\s*नंबर)\s*(?:no|number|#)?\s*[:.]?\s*(\d{9,18}|\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})/i,
+  // ============ FIXED: Account numbers - STRICTER VALIDATION ============
+  account: /\b(?:\d{12,16})\b/,  // EXACT 12-16 digits, no spaces/dashes
+  account_with_spaces: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/, // For formatted numbers
+  account_number: /\b(?:account|खाता|अकाउंट|खाता\s*नंबर)\s*(?:no|number|#)?\s*[:.]?\s*(\d{9,18})/i,
   
-  // ============ FIXED: UPI PATTERNS - MATCHES ANY FORMAT ============
+  // ============ FIXED: UPI - ANY FORMAT ============
   upi: /\b(?:upi|gpay|google\s*pay|phonepe|paytm|amazon\s*pay|bh?im|भीम|UPI|U\.P\.I)\b/i,
-  upiId: /[\w.\-]+@[\w.\-]+/i,  // Matches ANY UPI ID (username@anything)
-  upiHandle: /@[a-zA-Z0-9.\-]+/g, // Matches @ handles
+  upiId: /[\w.\-]+@[\w.\-]+/i,  // Matches ANY UPI ID
+  
+  // ============ FIXED: Phone numbers - STRICT VALIDATION ============
+  phone: /\b(?:\+91|0)?([6-9]\d{9})\b/,
+  phone_with_country: /\+\d{1,3}[6-9]\d{9}/,
   
   transfer: /\b(?:neft|rtgs|imps|transfer|send|भेजो|भेजे|पैसे\s*भेजो|पैसे\s*भेजे|fund|payment|refund|रिफंड)\b/i,
   
@@ -59,41 +50,36 @@ const PATTERNS = {
   // Urgency tactics - HINGLISH
   urgent: /\b(?:urgent|immediately?|now|within\s*(?:minutes?|hours?)|right\s*now|minutes|blocked\s*in\s*\d+\s*hours?)\b/i,
   urgent_hindi: /\b(?:तुरंत|अभी|जल्दी|फटाफट|जल्द|तुरन्त|तुरत|अभी\s*करो)\b/i,
-  deadline: /\b(?:deadline|expire?|valid\s*only|limited|last\s*chance|before\s*it's\s*too\s*late|will\s*be\s*blocked|will\s*be\s*locked|ब्लॉक\s*होगा|लॉक\s*होगा)\b/i,
+  deadline: /\b(?:deadline|expire?|valid\s*only|limited|last\s*chance|before\s*it's\s*too\s*late|will\s*be\s*blocked|will\s*be\s*locked|ब्लॉक\s*होगा|लॉक\s*होगा|freeze|hold)\b/i,
   
   // Threats & fear tactics - HINGLISH
-  block: /\b(?:block|blocked|freeze|suspend|suspended|lock|locked|deactivate|restrict|disable|hold|ब्लॉक|बंद|रोक)\b/i,
+  block: /\b(?:block|blocked|freeze|suspend|suspended|lock|locked|deactivate|restrict|disable|hold|ब्लॉक|बंद|रोक|चला जाएगा|चीन लिए जाएंगे|hold)\b/i,
   compromised: /\b(?:compromised|hacked|breach|unauthorized|fraud|suspicious|risk|unusual|alert|flagged|हैक|चोरी|गड़बड़ी)\b/i,
   
   // Authority claims - HINGLISH
   bank: /\b(?:sbi|state\s*bank|hdfc|icici|axis|kotak|pnb|canara|union|yesbank|bank|बैंक)\b/i,
-  department: /\b(?:fraud\s*team|security\s*team|risk\s*team|customer\s*support|helpdesk|verification\s*team|support|fraud\s*prevention|technical|सपोर्ट|हेल्पडेस्क)\b/i,
+  department: /\b(?:fraud\s*team|security\s*team|risk\s*team|customer\s*support|helpdesk|verification\s*team|support|fraud\s*prevention|technical|सपोर्ट|हेल्पडेस्क|official\s*line|security\s*line)\b/i,
   official: /\b(?:official|authorized|verified|registered|certified|ऑफिशियल|वेरिफाइड)\b/i,
   
-  // ============ SOCIAL ENGINEERING DETECTION ============
-  // No keywords, just psychological manipulation
-  helping: /\b(?:help|सहायता|मदद|बचा|बचाओ|save|protect|secure)\b/i,
-  emotional: /\b(?:please|pls|कृपया|सर|madam|bhaiya|didi|brother|sister)\b/i,
-  supervisor: /\b(?:supervisor|manager|senior|head|boss|टीम\s*लीड|मैनेजर)\b/i,
-  urgent_help: /\b(?:turant|immediate|right now)\s*(?:help|मदद|करो)\b/i,
-  
   // Contact information
-  phone: /\b(?:\+91|0)?[6-9]\d{9}\b/,
+  phone: /\b(?:\+91|0)?([6-9]\d{9})\b/,
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
   
   // Family & personal - HINGLISH
-  family: /\b(?:पापा|papa|मम्मी|mummy|भाई|bhai|बेटा|beta|पति|pati|पत्नी|wife|husband|बच्चे|children)\b/i,
+  family: /\b(?:पापा|papa|मम्मी|mummy|भाई|bhai|बेटा|beta|पति|pati|पत्नी|wife|husband|बच्चे|children|cousin|friend)\b/i,
   
   // Branch & location - HINGLISH
   branch: /\b(?:branch|बैंक|शाखा|ऑफिस|office|near|पास|लोकेशन|location)\b/i,
   
   // Time references - HINGLISH
-  time: /\b(?:कल|kal|आज|aaj|परसों|parson|सुबह|subah|शाम|sham|रात|raat)\b/i
+  time: /\b(?:कल|kal|आज|aaj|परसों|parson|सुबह|subah|शाम|sham|रात|raat|घंटे|ghante|hour|minute)\b/i,
+  
+  // RESEND command
+  resend: /\b(?:resend|रेसेंड|दुबारा|फिर\s*से)\b/i
 };
 
 // ==============================================
-// HINGLISH REPLY DATABASE - 100% NATURAL
-// NO ACCUSATIONS, NO DETECTION, ONLY CONFUSED HUMAN
+// EXPANDED HINGLISH REPLY DATABASE - NO REPETITION
 // ==============================================
 const REPLIES = {
   // ============ PHASE 1: CONFUSION (Turns 1-3) ============
@@ -104,7 +90,8 @@ const REPLIES = {
     "Mujhe toh koi message nahi aaya block ke baare mein.",
     "Yeh kaunsa bank hai? SBI ya HDFC?",
     "Main toh apna account use kar raha tha sab normal tha.",
-    "Achanak block kyun? Maine toh koi galat kaam nahi kiya."
+    "Achanak block kyun? Maine toh koi galat kaam nahi kiya.",
+    "Mera account kaise compromise hua? Main toh alert nahi aaya."
   ],
   
   turn2: [
@@ -114,7 +101,9 @@ const REPLIES = {
     "Kab hua ye transaction? Main toh ghar tha.",
     "Kya time tha transaction ka? Main check kar leta hoon.",
     "Mere paas alert aana chahiye tha na?",
-    "Transaction successful tha ya failed?"
+    "Transaction successful tha ya failed?",
+    "Maine toh koi transaction kiya hi nahi aaj kal.",
+    "Kaunsa account? Savings ya current?"
   ],
   
   turn3: [
@@ -124,7 +113,9 @@ const REPLIES = {
     "Yeh kaunsi branch se call kar rahe ho?",
     "Aapki location kya hai? Main wahan jaanta hoon kisi ko.",
     "Customer care ka number to 1800 wala hai na?",
-    "Main apni branch mein puchh leta hoon pehle."
+    "Main apni branch mein puchh leta hoon pehle.",
+    "Aap SBI se ho ya kisi aur bank se?",
+    "Aapka official email ID kya hai?"
   ],
   
   // ============ PHASE 2: DOUBTFUL (Turns 4-6) ============
@@ -135,7 +126,16 @@ const REPLIES = {
     "Aapko OTP dikh raha hai kya? Mujhe toh nahi aaya.",
     "OTP share karna safe thodi hai.",
     "Mere SMS mein likha hai 'Never share OTP'.",
-    "Yeh toh RBI guidelines ke against hai na?"
+    "Yeh toh RBI guidelines ke against hai na?",
+    "Bank wale OTP nahi maangte, maine TV pe dekha hai."
+  ],
+  
+  turn4_otp_not_received: [
+    "OTP nahi aaya abhi tak. Aapne bheja hai kya?",
+    "Main check kar raha hoon, koi OTP nahi hai.",
+    "Kya aap OTP generate kar rahe ho? Mujhe toh nahi aaya.",
+    "Network slow hai shayad, OTP nahi aa raha.",
+    "Aapka OTP kab bheja? Maine toh dekha nahi."
   ],
   
   turn4_authority: [
@@ -144,7 +144,9 @@ const REPLIES = {
     "Aapka naam kya hai? Main note kar raha hoon.",
     "Kya main aapke manager se baat kar sakta hoon?",
     "Aapki employee ID kya hai? Main check karunga.",
-    "Aapka extension number batao, main call back karta hoon."
+    "Aapka extension number batao, main call back karta hoon.",
+    "Aapka designation kya hai bank mein?",
+    "Team leader ka naam batao."
   ],
   
   turn4_general: [
@@ -152,7 +154,9 @@ const REPLIES = {
     "Mere card ke peeche jo number hai wahan call karu kya?",
     "Aap mujhe email bhej sakte ho official domain se?",
     "Main apni branch jaake puchhta hoon kal subah.",
-    "Mera cousin bhi SBI mein kaam karta hai, main puchh leta hoon."
+    "Mera cousin bhi SBI mein kaam karta hai, main puchh leta hoon.",
+    "Mere papa ne kaha aise calls pe trust mat karo.",
+    "Main apne friend se puchhta hoon jo bank mein hai."
   ],
   
   turn5_verification: [
@@ -161,15 +165,19 @@ const REPLIES = {
     "Maine apna passbook check kiya, sab normal hai.",
     "Kyunki maine toh koi transaction kiya hi nahi.",
     "Aapke paas koi proof hai ki mera account compromised hai?",
-    "Mujhe laga alert aana chahiye tha."
+    "Mujhe laga alert aana chahiye tha.",
+    "Main SBI app mein login hua, sab theek hai.",
+    "Mera balance bhi same hai, koi transaction nahi hui."
   ],
   
   turn5_policy: [
     "RBI ne toh bola hai bank OTP nahi maangte.",
     "Mere bank ke T&C mein likha hai kabhi OTP mat do.",
-    "Yeh toh maine TV pe bhi dekha hai, scam hota hai aise.",
+    "Yeh toh maine TV pe bhi dekha hai, fraud hota hai aise.",
     "SBI ka official message aata hai 'Never share OTP'.",
-    "Main toh kabhi kisi ko OTP nahi deta."
+    "Main toh kabhi kisi ko OTP nahi deta.",
+    "Yeh RBI guidelines ke against hai.",
+    "Bank wale aise nahi karte."
   ],
   
   turn5_suspicion: [
@@ -177,7 +185,9 @@ const REPLIES = {
     "Pata nahi, mujhe trust nahi ho raha.",
     "Main confuse hoon, aap kaun ho actually?",
     "Yeh sahi hai kya? Main soch raha hoon.",
-    "Kyunki pichle hafte mere ek friend ke saath hua tha aise hi."
+    "Kyunki pichle hafte mere ek friend ke saath hua tha aise hi.",
+    "Mujhe scam lag raha hai honestly.",
+    "Aapka number kaise mila mujhe?"
   ],
   
   turn6_process: [
@@ -186,7 +196,8 @@ const REPLIES = {
     "Main branch aa jaata hoon kal, kitne baje aana hai?",
     "Kya main apne home branch mein aa sakta hoon?",
     "Yeh process thoda different lag raha hai.",
-    "Normally toh bank aise nahi karta."
+    "Normally toh bank aise nahi karta.",
+    "Mujhe aise verify nahi karna, main branch aa jaata hoon."
   ],
   
   turn6_alternative: [
@@ -194,7 +205,8 @@ const REPLIES = {
     "Aap official customer care number batao, main wahan call karta hoon.",
     "Main apna relationship manager se baat karunga pehle.",
     "Branch jaake karta hoon yeh sab, aap branch ka address batao.",
-    "Koi branch near by hai kya? Main abhi jaata hoon."
+    "Koi branch near by hai kya? Main abhi jaata hoon.",
+    "Aap nearest branch ka address bhejo."
   ],
   
   // ============ PHASE 3: DEFENSIVE (Turns 7-9) ============
@@ -203,7 +215,9 @@ const REPLIES = {
     "Aap branch ka address bhejo, main abhi aata hoon.",
     "Mera home branch Andheri West mein hai, wahan jaau kya?",
     "Branch manager sir se baat karni hai, unka naam kya hai?",
-    "Main apne ghar ke paas wali branch mein chala jaata hoon."
+    "Main apne ghar ke paas wali branch mein chala jaata hoon.",
+    "Meri branch Borivali mein hai, wahan call karo.",
+    "Main branch jaake hi baat karunga."
   ],
   
   turn7_family: [
@@ -211,7 +225,9 @@ const REPLIES = {
     "Mera bhai bhi SBI mein hai, use call karta hoon pehle.",
     "Meri wife ne kaha yeh scam ho sakta hai.",
     "Mere friend ke saath aise hi hua tha, main usse puchhta hoon.",
-    "Mama ne kaha kabhi OTP share mat karo."
+    "Mama ne kaha kabhi OTP share mat karo.",
+    "Mere cousin ne bola aise calls ignore karne ka.",
+    "Papa bol rahe hain aise nahi karte bank wale."
   ],
   
   turn7_official: [
@@ -219,7 +235,8 @@ const REPLIES = {
     "Aapka domain @sbi.co.in hai na?",
     "Kya main apne registered email ID pe confirmation mail le sakta hoon?",
     "Aap apna official letterhead bhejo, main check karunga.",
-    "Branch se koi document bhejo, main uske baad hi kuch karunga."
+    "Branch se koi document bhejo, main uske baad hi kuch karunga.",
+    "Aap apna visiting card bhejo pehle."
   ],
   
   turn8_persistent: [
@@ -228,7 +245,9 @@ const REPLIES = {
     "Aap toh mera baat hi nahi sun rahe.",
     "Main clearly bol raha hoon main OTP nahi dunga.",
     "Yeh aap kya kar rahe ho? Main samajh nahi pa raha.",
-    "Aap meri baat kyun ignore kar rahe ho?"
+    "Aap meri baat kyun ignore kar rahe ho?",
+    "Maine 3 baar mana kar diya, phir bhi OTP maang rahe ho.",
+    "Aap itna insist kyun kar rahe ho?"
   ],
   
   turn8_authority_reject: [
@@ -236,7 +255,8 @@ const REPLIES = {
     "Employee ID se kya farak padta hai jab rules hi alag hai?",
     "Aap official ho ya nahi, main risk nahi lunga.",
     "Manager bhi aayega toh OTP nahi dunga.",
-    "RBI ka rule hai, main follow kar raha hoon."
+    "RBI ka rule hai, main follow kar raha hoon.",
+    "Aap RBI ke rules nahi jaante kya?"
   ],
   
   turn8_time: [
@@ -244,7 +264,8 @@ const REPLIES = {
     "Main shopping kar raha hoon, thoda baad mein call karo.",
     "Office mein hoon, free hoke call karta hoon.",
     "Abhi baat nahi kar sakta, kal baat karte hain.",
-    "Main drive kar raha hoon, baad mein call karo."
+    "Main drive kar raha hoon, baad mein call karo.",
+    "Abhi meeting chal rahi hai, baad mein call karta hoon."
   ],
   
   turn9_final_warning: [
@@ -252,7 +273,8 @@ const REPLIES = {
     "Main ab call kar raha hoon apne bank ko.",
     "Mera decision final hai, main kuch share nahi karunga.",
     "Aap aise force kar rahe ho, yeh theek nahi hai.",
-    "Main ab phone rakh raha hoon, kal branch jaunga."
+    "Main ab phone rakh raha hoon, kal branch jaunga.",
+    "Main aur nahi kar sakta baat, bye."
   ],
   
   turn9_complaint: [
@@ -260,7 +282,8 @@ const REPLIES = {
     "1930 pe call karta hoon abhi, yeh number hai na cyber cell ka?",
     "Maine aapka number note kar liya hai.",
     "Main apni branch mein jaake complaint likhwa dunga.",
-    "Aapka number main report kar dunga."
+    "Aapka number main report kar dunga.",
+    "Main police complaint kar dunga."
   ],
   
   // ============ PHASE 4: EXIT (Turns 10+) ============
@@ -271,7 +294,8 @@ const REPLIES = {
     "Aapka number main block kar raha hoon. Bye.",
     "Main kuch nahi kar sakta bina branch verification ke. Sorry.",
     "Jab tak main branch nahi jaata, tab tak main kuch nahi karunga.",
-    "Aap apna official channel use karo, main wahan available hoon."
+    "Aap apna official channel use karo, main wahan available hoon.",
+    "Main abhi SBI customer care call kar raha hoon."
   ],
   
   turn10_ignore: [
@@ -279,104 +303,47 @@ const REPLIES = {
     "Main abhi baat nahi kar sakta.",
     "Kal call karo.",
     "Branch jaake baat karte hain.",
-    "Dekhta hoon pehle."
+    "Dekhta hoon pehle.",
+    "Abhi busy hoon.",
+    "Baad mein karte hain."
   ],
   
-  // ============ SOCIAL ENGINEERING REPLIES (For Perplexity Fallback) ============
-  social_engineering: [
-    "Aap keh rahe ho mera account unsafe hai? Kaise pata chala?",
-    "Aap help kar rahe ho, lekin main samajh nahi pa raha kyun?",
-    "Mujhe laga bank aise hi inform karta hai.",
-    "Aapka number kaise mila mujhe?",
-    "Main thoda confused hoon, aap sahi mein bank se ho?",
-    "Kyun aap itni tension le rahe ho mere account ki?",
-    "Maine toh koi problem report nahi ki thi.",
-    "Aap kaunsa department ho jo directly customers ko call karte ho?",
-    "Yeh aapki personal initiative hai ya bank ka official process?",
-    "Main pehle apni branch se confirm kar leta hoon."
+  // ============ PHONE NUMBER RESPONSES - TRACKED ============
+  phone_first: [
+    "Yeh aapka number hai kya {phone}? Main call karta hoon check karne ke liye.",
+    "{phone} - yeh aapka official number hai?",
+    "Aapne {phone} diya hai, main is number ko call karta hoon.",
+    "Kya main {phone} pe call kar sakta hoon verify karne ke liye?",
+    "Yeh {phone} SBI ka official number hai kya?"
+  ],
+  
+  phone_second: [
+    "Maine {phone} pe call kiya, par koi receive nahi kar raha.",
+    "Aapka {phone} number engaged aa raha hai.",
+    "Kya yeh {phone} sahi number hai? Call connect nahi ho raha.",
+    "Main {phone} pe baat karna chahta tha, par koi utha nahi.",
+    "Is {phone} number pe customer care hai na?"
+  ],
+  
+  phone_third: [
+    "Aap bar bar yahi {phone} number de rahe ho.",
+    "Maine {phone} pe call kiya tha, abhi tak koi response nahi aaya.",
+    "Yeh {phone} number toh mere paas SBI ke official number ke as nahi hai.",
+    "Mere pass SBI ka 1800 wala number hai, yeh {phone} kyun hai?"
+  ],
+  
+  // ============ RESEND COMMAND RESPONSES ============
+  resend: [
+    "'RESEND' karke bhej du? Kaunsa number pe bhejna hai?",
+    "Maine RESEND likh diya, ab kya hoga?",
+    "RESEND bhej diya maine, OTP aayega ab?",
+    "RESEND kar diya, ab wait karta hoon OTP ke liye.",
+    "Kaunsa number pe RESEND bhejna hai? Aapne do numbers diye hain."
   ]
 };
 
 // ==============================================
-// PERPLEXITY AI INTEGRATION - REPLY SELECTOR ONLY
-// NO LOGIC DECISIONS, ONLY STYLISTIC REPLY ENHANCEMENT
-// ==============================================
-class PerplexityService {
-  
-  static async getReplySuggestion(message, conversationHistory, riskScore) {
-    if (!CONFIG.USE_PERPLEXITY) return null;
-    
-    try {
-      const response = await axios.post(
-        CONFIG.PERPLEXITY_URL,
-        {
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a confused Indian bank customer who speaks Hinglish (Hindi+English). 
-              You are talking to someone who claims to be from the bank.
-              You are cautious but not accusing. Never say "scam" or "fraud" directly.
-              Generate ONE natural, confused, Hinglish reply (max 15 words).
-              Reply should sound like a real person, not a bot.`
-            },
-            {
-              role: 'user',
-              content: `Last scammer message: "${message}"
-              Previous conversation: ${JSON.stringify(conversationHistory.slice(-3))}
-              Generate a natural Hinglish reply:`
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 50
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${CONFIG.PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: CONFIG.PERPLEXITY_TIMEOUT
-        }
-      );
-      
-      const suggestion = response.data.choices[0]?.message?.content?.trim();
-      return suggestion || null;
-      
-    } catch (error) {
-      console.error('Perplexity API error:', error.message);
-      return null; // Fail silently, fallback to deterministic
-    }
-  }
-  
-  // ============ DETERMINE WHEN TO USE PERPLEXITY ============
-  static shouldUsePerplexity(signals, riskScore, turnCount) {
-    // Only use in early turns (1-4)
-    if (turnCount > CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX) return false;
-    
-    // Only use for medium risk, ambiguous messages
-    if (riskScore < CONFIG.PERPLEXITY_TRIGGER_RISK_MIN || 
-        riskScore > CONFIG.PERPLEXITY_TRIGGER_RISK_MAX) return false;
-    
-    // DON'T use if strong signals are present (deterministic handles these well)
-    if (signals.credential) return false;
-    if (signals.payment) return false;
-    if (signals.phishing) return false;
-    if (signals.threat) return false;
-    
-    // DO use for subtle social engineering
-    const shouldUse = 
-      signals.authority || 
-      signals.urgency ||
-      PATTERNS.helping.test(message) ||
-      PATTERNS.emotional.test(message) ||
-      PATTERNS.supervisor.test(message);
-    
-    return shouldUse;
-  }
-}
-
-// ==============================================
-// FIXED: INTELLIGENCE EXTRACTION - NOW CATCHES ALL UPI IDs
+// FIXED: INTELLIGENCE EXTRACTION - PROPER VALIDATION
 // ==============================================
 class IntelligenceExtractor {
   static createEmptyStore() {
@@ -408,59 +375,107 @@ class IntelligenceExtractor {
     return intelligence;
   }
 
-  // ============ FIXED: UPI EXTRACTION HELPER ============
-  static extractUPIIds(text, intelligence) {
-    // Method 1: Match full UPI pattern (username@domain.anything)
-    const fullUpiRegex = /[\w.\-]+@[\w.\-]+/gi;
-    const fullMatches = text.match(fullUpiRegex);
+  // ============ FIXED: BANK ACCOUNT EXTRACTION - STRICT VALIDATION ============
+  static extractBankAccounts(text, intelligence) {
+    // Method 1: Look for 12-16 digit numbers (no spaces, no dashes)
+    const exactMatches = text.match(/\b\d{12,16}\b/g);
+    if (exactMatches) {
+      exactMatches.forEach(acc => {
+        // Phone numbers start with 6,7,8,9 and are 10 digits - exclude them
+        if (acc.length === 10 && /^[6-9]/.test(acc)) {
+          // This is a phone number, not bank account
+          return;
+        }
+        // Bank accounts are typically 12-16 digits and don't start with 6-9 if length 10
+        if (acc.length >= 12) {
+          if (!intelligence.bankAccounts.includes(acc)) {
+            intelligence.bankAccounts.push(acc);
+            console.log(`✅ Extracted Bank Account: ${acc}`);
+          }
+        }
+      });
+    }
     
-    if (fullMatches) {
-      fullMatches.forEach(upi => {
-        // Clean the UPI ID (remove trailing punctuation)
-        const clean = upi.toLowerCase()
-                      .trim()
-                      .replace(/[.,;:!?()\[\]{}\s]$/, '');
-        
+    // Method 2: Look for formatted numbers (XXXX-XXXX-XXXX)
+    const formattedMatches = text.match(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g);
+    if (formattedMatches) {
+      formattedMatches.forEach(acc => {
+        const clean = acc.replace(/[\s-]/g, '');
+        // Ensure it's not a phone number (10 digits starting with 6-9)
+        if (clean.length === 10 && /^[6-9]/.test(clean)) {
+          return;
+        }
+        if (clean.length >= 12 && !intelligence.bankAccounts.includes(clean)) {
+          intelligence.bankAccounts.push(clean);
+          console.log(`✅ Extracted Bank Account (formatted): ${clean}`);
+        }
+      });
+    }
+    
+    // Method 3: Look for account number after "account" keyword
+    const accountKeywordMatches = text.match(/account\s*(?:no|number|#)?\s*[:.]?\s*(\d{9,18})/i);
+    if (accountKeywordMatches) {
+      const acc = accountKeywordMatches[1];
+      // Skip if it's a phone number
+      if (!(acc.length === 10 && /^[6-9]/.test(acc))) {
+        if (!intelligence.bankAccounts.includes(acc)) {
+          intelligence.bankAccounts.push(acc);
+          console.log(`✅ Extracted Bank Account (keyword): ${acc}`);
+        }
+      }
+    }
+  }
+
+  // ============ FIXED: PHONE NUMBER EXTRACTION - STRICT VALIDATION ============
+  static extractPhoneNumbers(text, intelligence) {
+    // Method 1: Indian mobile numbers (10 digits starting with 6-9)
+    const phoneMatches = text.match(/\b[6-9]\d{9}\b/g);
+    if (phoneMatches) {
+      phoneMatches.forEach(phone => {
+        if (!intelligence.phoneNumbers.includes(phone)) {
+          intelligence.phoneNumbers.push(phone);
+          console.log(`✅ Extracted Phone Number: ${phone}`);
+        }
+      });
+    }
+    
+    // Method 2: Numbers with +91 prefix
+    const withCountryCode = text.match(/\+91\s*([6-9]\d{9})\b/g);
+    if (withCountryCode) {
+      withCountryCode.forEach(phone => {
+        const clean = phone.replace('+91', '').replace(/\s/g, '');
+        if (!intelligence.phoneNumbers.includes(clean)) {
+          intelligence.phoneNumbers.push(clean);
+          console.log(`✅ Extracted Phone Number (with +91): ${clean}`);
+        }
+      });
+    }
+    
+    // Method 3: Numbers with 0 prefix
+    const withZero = text.match(/0([6-9]\d{9})\b/g);
+    if (withZero) {
+      withZero.forEach(phone => {
+        const clean = phone.slice(1);
+        if (!intelligence.phoneNumbers.includes(clean)) {
+          intelligence.phoneNumbers.push(clean);
+          console.log(`✅ Extracted Phone Number (with 0): ${clean}`);
+        }
+      });
+    }
+  }
+
+  // ============ FIXED: UPI EXTRACTION ============
+  static extractUPIIds(text, intelligence) {
+    const upiRegex = /[\w.\-]+@[\w.\-]+/gi;
+    const matches = text.match(upiRegex);
+    
+    if (matches) {
+      matches.forEach(upi => {
+        const clean = upi.toLowerCase().trim().replace(/[.,;:!?]$/, '');
         if (clean.includes('@') && clean.length > 3) {
           if (!intelligence.upiIds.includes(clean)) {
             intelligence.upiIds.push(clean);
             console.log(`✅ Extracted UPI ID: ${clean}`);
-          }
-        }
-      });
-    }
-    
-    // Method 2: Look for @ symbol and capture context
-    const atMatches = text.match(PATTERNS.upiHandle);
-    if (atMatches) {
-      atMatches.forEach(atPart => {
-        // Look backwards up to 30 chars to find the username
-        const beforeIndex = Math.max(0, text.indexOf(atPart) - 30);
-        const beforeText = text.substring(beforeIndex, text.indexOf(atPart));
-        const usernameMatch = beforeText.match(/[\w.\-]+$/);
-        
-        if (usernameMatch) {
-          const fullUpi = usernameMatch[0] + atPart;
-          const clean = fullUpi.toLowerCase().trim().replace(/[.,;:!?]$/, '');
-          
-          if (!intelligence.upiIds.includes(clean)) {
-            intelligence.upiIds.push(clean);
-            console.log(`✅ Extracted UPI ID (from @): ${clean}`);
-          }
-        }
-      });
-    }
-    
-    // Method 3: Check for UPI keyword in context
-    if (PATTERNS.upi.test(text) && intelligence.upiIds.length === 0) {
-      // Try to extract any word with @ that might be a UPI ID
-      const words = text.split(/\s+/);
-      words.forEach(word => {
-        if (word.includes('@')) {
-          const clean = word.toLowerCase().replace(/[.,;:!?]$/, '');
-          if (!intelligence.upiIds.includes(clean)) {
-            intelligence.upiIds.push(clean);
-            console.log(`✅ Extracted UPI ID (context): ${clean}`);
           }
         }
       });
@@ -470,37 +485,14 @@ class IntelligenceExtractor {
   static extractFromText(text, intelligence) {
     const lower = text.toLowerCase();
     
-    // Extract bank accounts
-    const accounts = text.match(PATTERNS.account);
-    if (accounts) {
-      accounts.forEach(acc => {
-        const clean = acc.replace(/[\s-]/g, '');
-        if (clean.length >= 9 && clean.length <= 18 && /^\d+$/.test(clean)) {
-          if (!intelligence.bankAccounts.includes(clean)) {
-            intelligence.bankAccounts.push(clean);
-            console.log(`✅ Extracted Bank Account: ${clean}`);
-          }
-        }
-      });
-    }
+    // Extract bank accounts - FIXED
+    this.extractBankAccounts(text, intelligence);
     
-    // ============ FIXED: Extract UPI IDs ============
+    // Extract UPI IDs
     this.extractUPIIds(text, intelligence);
     
-    // Extract phone numbers
-    const phones = text.match(PATTERNS.phone);
-    if (phones) {
-      phones.forEach(phone => {
-        let clean = phone.replace(/[\s-]/g, '').replace('+91', '');
-        if (clean.startsWith('0')) clean = clean.slice(1);
-        if (clean.length === 10 && /^[6-9]/.test(clean)) {
-          if (!intelligence.phoneNumbers.includes(clean)) {
-            intelligence.phoneNumbers.push(clean);
-            console.log(`✅ Extracted Phone: ${clean}`);
-          }
-        }
-      });
-    }
+    // Extract phone numbers - FIXED
+    this.extractPhoneNumbers(text, intelligence);
     
     // Extract phishing links
     const links = text.match(PATTERNS.link);
@@ -514,8 +506,8 @@ class IntelligenceExtractor {
       });
     }
     
-    // ============ EXTRACT KEYWORDS - HINGLISH ============
-    if (PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text)) 
+    // ============ EXTRACT KEYWORDS ============
+    if (PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text) || PATTERNS.resend.test(text)) 
       intelligence.suspiciousKeywords.push('otp_request');
     if (PATTERNS.pin.test(text)) 
       intelligence.suspiciousKeywords.push('pin_request');
@@ -539,7 +531,7 @@ class IntelligenceExtractor {
     if (PATTERNS.deadline.test(text)) 
       intelligence.suspiciousKeywords.push('deadline_pressure');
     
-    if (PATTERNS.block.test(text) || PATTERNS.hindi_threat.test(text)) 
+    if (PATTERNS.block.test(text)) 
       intelligence.suspiciousKeywords.push('account_block_threat');
     if (PATTERNS.compromised.test(text)) 
       intelligence.suspiciousKeywords.push('security_breach_claim');
@@ -554,52 +546,58 @@ class IntelligenceExtractor {
 }
 
 // ==============================================
-// CHAMPIONSHIP HINGLISH REPLY GENERATOR
-// WITH HYBRID PERPLEXITY FALLBACK
+// CHAMPIONSHIP HINGLISH REPLY GENERATOR - NO REPETITION
 // ==============================================
 class HinglishReplyGenerator {
   
   static initializeHumanState(session) {
     if (!session.humanState) {
       session.humanState = {
-        // Innocent confusion
+        // Track what's been asked
         askedWhyBlocked: false,
         askedTransactionDetails: false,
         askedLocation: false,
         askedTime: false,
         askedAmount: false,
-        
-        // Verification attempts
         askedEmployeeID: false,
         askedBranch: false,
         askedDepartment: false,
         askedEmail: false,
         askedOfficialLetter: false,
         
-        // Natural responses
+        // Track what's been suggested
         suggestedCall: false,
         suggestedBranch: false,
         suggestedNetbanking: false,
         suggestedApp: false,
         suggestedFamily: false,
+        suggestedComplaint: false,
+        suggestedCyberCell: false,
         
-        // Counters for progressive responses
+        // ============ FIXED: Track phone number interactions ============
+        phoneNumberMentioned: false,
+        phoneNumberCalled: false,
+        phoneNumberQuestioned: false,
+        phoneNumberRepeated: false,
+        extractedPhone: null,
+        phoneMentionCount: 0,
+        
+        // Track RESEND command
+        resendUsed: false,
+        
+        // Counters
         otpRequests: 0,
         threatCount: 0,
         urgencyCount: 0,
         accountMentions: 0,
+        phoneMentions: 0,
         
-        // Track what replies we've used (never repeat)
+        // Track used replies
         usedReplies: new Set(),
-        
-        // Last reply type
         lastReplyType: null,
         lastReplyTurn: 0,
         
-        // Extracted phone for natural response
-        extractedPhone: null,
-        
-        // For natural randomness
+        // Mood
         mood: Math.random() > 0.5 ? 'cautious' : 'confused'
       };
     }
@@ -617,69 +615,75 @@ class HinglishReplyGenerator {
     if (PATTERNS.urgent.test(lastMessage) || PATTERNS.urgent_hindi.test(lastMessage)) {
       state.urgencyCount++;
     }
+    if (PATTERNS.resend.test(lastMessage)) {
+      state.resendUsed = true;
+    }
     
-    // Extract phone number if present
-    if (!state.extractedPhone) {
-      const phone = lastMessage.match(PATTERNS.phone);
-      if (phone) {
-        state.extractedPhone = phone[0];
+    // Extract and track phone number
+    const phone = this.extractPhoneFromMessage(lastMessage);
+    if (phone) {
+      state.phoneMentions++;
+      state.extractedPhone = phone;
+      
+      if (state.phoneMentions === 1) {
+        state.phoneNumberMentioned = true;
+      } else if (state.phoneMentions >= 2) {
+        state.phoneNumberRepeated = true;
       }
     }
     
     return state;
   }
   
+  static extractPhoneFromMessage(text) {
+    const phoneMatch = text.match(/\b[6-9]\d{9}\b/);
+    return phoneMatch ? phoneMatch[0] : null;
+  }
+  
   // ==============================================
-  // MAIN REPLY GENERATOR - WITH PERPLEXITY FALLBACK
+  // MAIN REPLY GENERATOR - NO REPETITION
   // ==============================================
-  static async generateReply(session, scamDetected, signals, riskScore, messageText) {
+  static generateReply(session, scamDetected, signals) {
     const state = this.initializeHumanState(session);
     const turnCount = session.conversationHistory.filter(m => m.sender === 'user').length + 1;
     
-    // ============ CHECK IF WE SHOULD USE PERPLEXITY ============
-    const shouldUsePerplexity = PerplexityService.shouldUsePerplexity(
-      signals, 
-      riskScore, 
-      turnCount
-    );
-    
-    if (shouldUsePerplexity && CONFIG.USE_PERPLEXITY) {
-      console.log(`🤖 Using Perplexity for turn ${turnCount} (Risk: ${riskScore})`);
-      
-      const aiReply = await PerplexityService.getReplySuggestion(
-        messageText,
-        session.conversationHistory,
-        riskScore
-      );
-      
-      if (aiReply) {
-        state.usedReplies.add(aiReply);
-        return aiReply;
+    // ============ FIXED: PHONE NUMBER RESPONSES - PROGRESSIVE ============
+    if (state.extractedPhone) {
+      // First time phone is mentioned
+      if (state.phoneMentions === 1 && !state.phoneNumberCalled) {
+        state.phoneNumberCalled = true;
+        const replies = REPLIES.phone_first.map(r => r.replace('{phone}', state.extractedPhone));
+        return this.getUniqueReply(replies, 'phone_first', state);
       }
       
-      // Fallback to social engineering replies if AI fails
-      return this.getUniqueReply(REPLIES.social_engineering, 'social_eng', state);
+      // Second time phone is mentioned - different response
+      if (state.phoneMentions === 2 && !state.phoneNumberQuestioned) {
+        state.phoneNumberQuestioned = true;
+        const replies = REPLIES.phone_second.map(r => r.replace('{phone}', state.extractedPhone));
+        return this.getUniqueReply(replies, 'phone_second', state);
+      }
+      
+      // Third+ time phone is mentioned - call out repetition
+      if (state.phoneMentions >= 3 && !state.phoneNumberRepeated) {
+        state.phoneNumberRepeated = true;
+        const replies = REPLIES.phone_third.map(r => r.replace('{phone}', state.extractedPhone));
+        return this.getUniqueReply(replies, 'phone_third', state);
+      }
     }
     
-    // ============ DETERMINISTIC REPLY GENERATION ============
-    
-    // SPECIAL: Phone number detected
-    if (state.extractedPhone && !state.usedReplies.has('phone_react')) {
-      state.usedReplies.add('phone_react');
-      return `Yeh aapka number hai kya ${state.extractedPhone}? Main call karta hoon check karne ke liye.`;
+    // ============ RESEND COMMAND RESPONSE ============
+    if (state.resendUsed && !state.usedReplies.has('resend')) {
+      state.usedReplies.add('resend');
+      return this.getUniqueReply(REPLIES.resend, 'resend', state);
     }
     
-    // PROGRESSIVE OTP RESPONSES
+    // ============ PROGRESSIVE OTP RESPONSES ============
     if (signals.credential) {
       if (state.otpRequests === 1) {
         return this.getUniqueReply(REPLIES.turn4_otp, 'otp_1', state);
       }
       if (state.otpRequests === 2) {
-        return this.getUniqueReply([
-          "OTP phir se? Mujhe toh aaya hi nahi.",
-          "Aapko OTP dikh raha hai? Mere phone pe toh nahi aaya.",
-          "Main check kar raha hoon SMS, koi OTP nahi hai."
-        ], 'otp_2', state);
+        return this.getUniqueReply(REPLIES.turn4_otp_not_received, 'otp_2', state);
       }
       if (state.otpRequests === 3) {
         return this.getUniqueReply([
@@ -704,7 +708,7 @@ class HinglishReplyGenerator {
       }
     }
     
-    // PHASE 1: Turns 1-3
+    // ============ PHASE 1: Turns 1-3 ============
     if (turnCount === 1) {
       return this.getUniqueReply(REPLIES.turn1, 'turn1', state);
     }
@@ -725,7 +729,7 @@ class HinglishReplyGenerator {
       return this.getUniqueReply(REPLIES.turn2, 'turn2_fallback', state);
     }
     
-    // PHASE 2: Turns 4-6
+    // ============ PHASE 2: Turns 4-6 ============
     if (turnCount === 4) {
       if (signals.credential && state.otpRequests <= 2) {
         return this.getUniqueReply(REPLIES.turn4_otp, 'turn4_otp', state);
@@ -753,7 +757,7 @@ class HinglishReplyGenerator {
       return this.getUniqueReply(REPLIES.turn6_process, 'turn6_process', state);
     }
     
-    // PHASE 3: Turns 7-9
+    // ============ PHASE 3: Turns 7-9 ============
     if (turnCount === 7) {
       if (!state.suggestedFamily && Math.random() > 0.5) {
         state.suggestedFamily = true;
@@ -770,32 +774,39 @@ class HinglishReplyGenerator {
     }
     
     if (turnCount === 9) {
-      if (!state.usedReplies.has('final')) {
-        state.usedReplies.add('final');
-        return this.getUniqueReply(REPLIES.turn9_final_warning, 'turn9_final', state);
+      if (!state.suggestedComplaint) {
+        state.suggestedComplaint = true;
+        return this.getUniqueReply(REPLIES.turn9_complaint, 'turn9_complaint', state);
       }
-      return this.getUniqueReply(REPLIES.turn9_complaint, 'turn9_complaint', state);
+      return this.getUniqueReply(REPLIES.turn9_final_warning, 'turn9_final', state);
     }
     
-    // PHASE 4: Turns 10+
+    // ============ PHASE 4: Turns 10+ ============
     if (turnCount >= 10) {
+      if (!state.suggestedCyberCell) {
+        state.suggestedCyberCell = true;
+        return this.getUniqueReply([
+          "Main 1930 pe call kar raha hoon cyber cell mein.",
+          "Maine cyber crime portal pe complaint kar diya hai.",
+          "Aapka number main cyber cell ko de dunga."
+        ], 'cyber', state);
+      }
       if (turnCount === 10) {
         return this.getUniqueReply(REPLIES.turn10_exit, 'turn10_exit', state);
       }
       return this.getUniqueReply(REPLIES.turn10_ignore, 'turn10_ignore', state);
     }
     
-    // FALLBACK: Natural confused reply
-    return this.getNaturalFallback(state, signals);
+    // ============ FALLBACK ============
+    return this.getNaturalFallback(state);
   }
   
-  static getNaturalFallback(state, signals) {
+  static getNaturalFallback(state) {
     const fallbacks = [
       "Mujhe samajh nahi aaya, thoda aur batao.",
       "Aap kaunsa bank bol rahe ho pehle yeh batao.",
       "Main thoda confuse hoon, kya exact problem hai?",
       "Yeh sab theek hai na? Main soch raha hoon.",
-      "Aap aise suddenly block block kyun bol rahe ho?",
       "Maine toh kuch kiya nahi, phir bhi block?",
       "Kya main apni branch aa sakta hoon iske liye?"
     ];
@@ -807,38 +818,31 @@ class HinglishReplyGenerator {
       replyArray = [replyArray];
     }
     
-    // Filter out used replies
     const available = replyArray.filter(r => !state.usedReplies.has(r));
     
     if (available.length > 0) {
       const reply = available[Math.floor(Math.random() * available.length)];
       state.usedReplies.add(reply);
+      state.lastReplyType = category;
       return reply;
     }
     
-    // If all used, take random
-    const reply = replyArray[Math.floor(Math.random() * replyArray.length)];
-    return reply;
+    return replyArray[Math.floor(Math.random() * replyArray.length)];
   }
 }
 
 // ==============================================
-// SCAM DETECTION ENGINE - HINGLISH READY
+// SCAM DETECTION ENGINE
 // ==============================================
 class ScamDetector {
   static analyze(text) {
     const signals = {
-      credential: PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text) || 
-                  PATTERNS.pin.test(text) || PATTERNS.password.test(text) || 
-                  PATTERNS.cvv.test(text),
-      payment: PATTERNS.upi.test(text) || PATTERNS.transfer.test(text) || 
-               PATTERNS.upiId.test(text),
+      credential: PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text) || PATTERNS.resend.test(text),
+      payment: PATTERNS.upi.test(text) || PATTERNS.transfer.test(text) || PATTERNS.upiId.test(text),
       phishing: PATTERNS.link.test(text) || PATTERNS.fake_offer.test(text),
-      urgency: PATTERNS.urgent.test(text) || PATTERNS.urgent_hindi.test(text) || 
-               PATTERNS.deadline.test(text),
+      urgency: PATTERNS.urgent.test(text) || PATTERNS.urgent_hindi.test(text) || PATTERNS.deadline.test(text),
       threat: PATTERNS.block.test(text) || PATTERNS.compromised.test(text),
-      authority: PATTERNS.bank.test(text) || PATTERNS.department.test(text) || 
-                 PATTERNS.official.test(text)
+      authority: PATTERNS.bank.test(text) || PATTERNS.department.test(text) || PATTERNS.official.test(text)
     };
 
     const riskScore = this.calculateRiskScore(signals);
@@ -856,7 +860,6 @@ class ScamDetector {
     if (signals.threat) score += 20;
     if (signals.authority) score += 15;
     
-    // Bonuses for combinations
     if (signals.credential && signals.urgency) score += 15;
     if (signals.threat && signals.urgency) score += 15;
     if (signals.credential && signals.threat) score += 15;
@@ -871,7 +874,6 @@ class ScamDetector {
     if (userMessages.length >= CONFIG.MAX_TURNS) return true;
     
     if (session.scamDetected) {
-      // Exit if we have enough intelligence
       if (session.intelligence.bankAccounts.length >= 1) return true;
       if (session.intelligence.upiIds.length >= 1) return true;
       if (session.intelligence.phishingLinks.length >= 1) return true;
@@ -884,7 +886,7 @@ class ScamDetector {
 }
 
 // ==============================================
-// CALLBACK SERVICE - CLEAN PAYLOAD
+// CALLBACK SERVICE - FIXED PAYLOAD
 // ==============================================
 class CallbackService {
   static async sendFinalResult(sessionId, session) {
@@ -903,7 +905,7 @@ class CallbackService {
         phoneNumbers: intelligence.phoneNumbers,
         suspiciousKeywords: intelligence.suspiciousKeywords
       },
-      agentNotes: `Scammer used ${intelligence.suspiciousKeywords.slice(0, 5).join(', ')}${intelligence.suspiciousKeywords.length > 5 ? '...' : ''}. Extracted ${intelligence.bankAccounts.length} bank accounts, ${intelligence.upiIds.length} UPI IDs, ${intelligence.phoneNumbers.length} phone numbers.`
+      agentNotes: `Scammer used ${intelligence.suspiciousKeywords.slice(0, 5).join(', ')}... Extracted ${intelligence.bankAccounts.length} bank accounts, ${intelligence.upiIds.length} UPI IDs, ${intelligence.phoneNumbers.length} phone numbers.`
     };
 
     console.log('\n📤 CALLBACK PAYLOAD:');
@@ -919,7 +921,7 @@ class CallbackService {
 }
 
 // ==============================================
-// 🏆 MAIN CONTROLLER - HYBRID CHAMPIONSHIP EDITION
+// 🏆 MAIN CONTROLLER - FIXED
 // ==============================================
 export const honey_pot = async (req, res) => {
     try {
@@ -932,7 +934,6 @@ export const honey_pot = async (req, res) => {
 
         const { sessionId, message } = req.body;
 
-        // Initialize or get session
         if (!sessions.has(sessionId)) {
             sessions.set(sessionId, {
                 id: sessionId,
@@ -945,51 +946,37 @@ export const honey_pot = async (req, res) => {
 
         const session = sessions.get(sessionId);
 
-        // Add scammer's message
         session.conversationHistory.push({
             sender: 'scammer',
             text: message.text,
             timestamp: message.timestamp || Date.now()
         });
 
-        // Analyze for scam
         const analysis = ScamDetector.analyze(message.text);
-        
-        // Extract intelligence - FIXED UPI EXTRACTION!
         IntelligenceExtractor.extractFromText(message.text, session.intelligence);
         
-        // Update scam detection (internal only)
         if (!session.scamDetected && analysis.isScam) {
             session.scamDetected = true;
-            console.log(`🚨 Scam detected for session ${sessionId} at turn ${session.conversationHistory.length}`);
+            console.log(`🚨 Scam detected for session ${sessionId}`);
         }
 
-        // Generate natural Hinglish reply (with optional Perplexity fallback)
-        const reply = await HinglishReplyGenerator.generateReply(
+        const reply = HinglishReplyGenerator.generateReply(
             session,
             session.scamDetected,
-            analysis.signals,
-            analysis.riskScore,
-            message.text
+            analysis.signals
         );
 
-        // Add bot reply
         session.conversationHistory.push({
             sender: 'user',
             text: reply,
             timestamp: Date.now()
         });
 
-        console.log(`💬 Turn ${session.conversationHistory.filter(m => m.sender === 'user').length}: ${reply}`);
-
-        // Check if session should end
         if (ScamDetector.shouldExit(session)) {
             await CallbackService.sendFinalResult(sessionId, session);
             sessions.delete(sessionId);
-            console.log(`🏁 Session ${sessionId} ended`);
         }
 
-        // Return response in exact format
         return res.json({
             status: 'success',
             reply: reply

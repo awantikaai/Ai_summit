@@ -6,6 +6,6 @@ import { honey_pot } from "../Controller/newhoney-pot.js";
 const router = Router()
 
 router.post("/honeypot" , authMiddleware , honey_pot )
-router.get("/honeypot" , authMiddleware , HoneyPot )
+router.post("/honey-pot" , authMiddleware , HoneyPot )
 
 export default router;
