@@ -1,5 +1,5 @@
 import { CONFIG } from "../utils/config.js";
-
+import axios from "axios";
 export class CallbackService {
   static async sendFinalResult(sessionId, session) {
     const intelligence = session.intelligence;
