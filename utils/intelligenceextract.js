@@ -1,4 +1,4 @@
-
+import { PATTERNS } from "./pattern.js";
 export class IntelligenceExtractor {
   static createEmptyStore() {
     return {
