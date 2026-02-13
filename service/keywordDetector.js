@@ -1,6 +1,6 @@
 import { PATTERNS } from "../utils/pattern.js";
 
-export class KeywordDetector {
+export default class KeywordDetector {
   static detectKeywords(text) {
     const detected = {
       hasOTP: false, hasPIN: false, hasAccount: false, hasUPI: false, hasPhone: false,
@@ -34,7 +34,7 @@ export class KeywordDetector {
       phone = phone.replace('+91', '').replace(/\s/g, '');
       detected.phoneNumber = phone;
     }
-    if (PATTERNS.tollfree.test(text) || PATTERNS.sbi_official.test(text)) detected.hasTollfree = true;
+    if (PATTERNS.tollfree.test(text) ) detected.hasTollfree = true;
     if (PATTERNS.urgent.test(text) || PATTERNS.urgent_hindi.test(text) || PATTERNS.deadline.test(text)) detected.hasUrgency = true;
     if (PATTERNS.block.test(text)) {
       detected.hasThreat = true;

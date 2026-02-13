@@ -1,7 +1,7 @@
 import { CONFIG } from '../utils/config.js';
 import { ReplyGenerator } from '../utils/replygenerator.js';
 import { IntelligenceExtractor } from '../utils/intelligenceextract.js';
-import { KeywordDetector } from '../service/keywordDetector.js';
+import  KeywordDetector from '../service/keywordDetector.js';
 import { PerplexityService } from '../service/perplexity.js';
 import { CallbackService } from '../service/callbackservice.js';
 const sessions = new Map();
@@ -64,17 +64,15 @@ export const honey_pot = async (req, res) => {
     
     IntelligenceExtractor.extractFromText(message.text, session.intelligence);
     
-    session.pressureScore = 
-      (session.otpRequests >= 3 ? 1 : 0) +
-      (session.threatCount >= 2 ? 1 : 0) +
-      (detected.hasPermanent ? 1 : 0) +
-      (detected.hasFine ? 1 : 0) +
-      (detected.hasCyber ? 1 : 0) +
-      (session.repetitionCount >= 2 ? 1 : 0) +
-      (detected.hasEmployeeID ? 1 : 0) +
-      (detected.hasDesignation ? 1 : 0) +
-      (detected.hasIFSC ? 1 : 0) +
-      (detected.hasCaseReference ? 1 : 0);
+   session.pressureScore = 
+  (session.otpRequests >= 3 ? 1 : 0) +
+  (session.threatCount >= 2 ? 1 : 0) +
+  (detected.hasPermanent ? 1 : 0) +
+  (detected.hasFine ? 1 : 0) +
+  (detected.hasCyber ? 1 : 0) +
+  (session.repetitionCount >= 2 ? 1 : 0) +
+  (detected.hasEmployeeID ? 1 : 0) +
+  (detected.hasDesignation ? 1 : 0);
     
     if (session.lockToExit) {
       session.emotionLevel = 5;
