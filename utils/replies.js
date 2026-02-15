@@ -1,6 +1,100 @@
 export const REPLIES = {
   // Add these to your REPLIES object in replies.js
+ // Add these new reply categories to your REPLIES object
 
+// ============ ASK FOR SCAMMER INFO ============
+ask_scammer_name: [
+  "Aapka naam kya hai? Main note kar leta hoon.",
+  "Aap kaun ho? Pehle apna introduction do.",
+  "Aapka naam kya hai? Main call back kar sakta hoon aapko?",
+  "Kaunsa department? Aapka naam kya hai wahan?",
+  "Mujhe aapka naam batao, main record mein rakh leta hoon."
+],
+
+ask_scammer_phone: [
+  "Aapka number kya hai? Main call back karunga.",
+  "Mujhe aapka phone number do, main contact kar leta hoon.",
+  "Aap kis number se bol rahe ho? Main wahan call kar leta hoon.",
+  "Aapka contact number batao, main call back kar sakta hoon?",
+  "Is number ke alawa koi aur number hai aapka?"
+],
+
+ask_employee_id: [
+  "Aapka employee ID kya hai? Main verify kar leta hoon.",
+  "Employee ID batao, main check karunga system mein.",
+  "Aapke employee ID ke aage branch code kya hai?",
+  "SBI mein employee ID ka format kya hota hai? Aapka kya hai?",
+  "Main aapka ID note kar leta hoon. Kya hai?"
+],
+
+ask_official_number: [
+  "Official number kya hai aapka? Main confirm kar leta hoon.",
+  "Aapka department ka official number batao.",
+  "SBI ka official helpline number 1800 hota hai. Aapka kyun nahi?",
+  "Main aapke official number pe call back karunga. Batao.",
+  "Aapka customer care number kya hai? Main wahan call karunga."
+],
+
+// ============ REPETITION RESPONSES ============
+repetition_mild: [
+  "Aapne yeh baat pehle bhi kahi thi. Kuch aur batao?",
+  "Haan haan, yeh aap bol chuke ho. Aage kya?",
+  "Maine sun liya. Ab kya karna hai?",
+  "Yeh aap repeat kar rahe ho. Koi nayi baat?",
+  "Samajh gaya, par aage kya process hai?"
+],
+
+repetition_annoyed: [
+  "Aap baar baar yahi keh rahe ho. Thoda confuse ho raha hoon.",
+  "Yeh teen baar ho gaya same baat. Kuch aur batao.",
+  "Mujhe lag raha hai aap script padh rahe ho. Naya kuch bolo.",
+  "Repetition se kuch nahi hoga. Aage ka batao.",
+  "Main wait kar raha hoon kuch nayi information ka."
+],
+
+repetition_frustrated: [
+  "Aap same baat baar baar bol rahe ho. Main confuse ho raha hoon.",
+  "Yeh 4th baar hai aap yahi keh rahe ho. Kya problem hai?",
+  "Mujhe lagta hai main kuch galat samajh raha hoon. Dobara explain karo.",
+  "Aapki baat samajh aa rahi hai, par kuch naya bhi bolo.",
+  "Main thoda frustrated ho raha hoon. Kuch aur information do."
+],
+
+// ============ PHONE CLARIFICATION ============
+phone_ambiguous: [
+  "Yeh number {phone} kisका hai? Aapka ya mera?",
+  "Confuse ho gaya. {phone} aapka number hai ya mujhe OTP ispe bhejna hai?",
+  "Please clear karo - {phone} aapka hai jahan main call karu?",
+  "Ek baar batao - {phone} kisका number hai?",
+  "Mujhe lag raha hai {phone} aapka number hai. Confirm karo."
+],
+
+// ============ OTP RESEND AGAIN ============
+otp_resend_again: [
+  "Phir se RESEND kar diya. OTP aane do.",
+  "RESEND kiya dubara. Network slow hai shayad.",
+  "Maine RESEND kar diya. Ab wait karta hoon.",
+  "RESEND ho gaya. Kab tak aayega OTP?",
+  "Dobara RESEND bhej diya. Check karo."
+],
+
+// ============ VICTIM PHONE CONFIRMATION ============
+phone_victim_confirm: [
+  "Haan {phone} mera number hai. OTP isi number pe aayega na?",
+  "Mera number {phone} hai. Main wait kar raha hoon OTP ka.",
+  "Haan haan, {phone} mera hi number hai. OTP kab aayega?",
+  "Maine apna number {phone} diya tha registration time pe.",
+  "OTP {phone} pe aana chahiye. Abhi tak nahi aaya."
+],
+
+// ============ SCAMMER PHONE CURIOSITY ============
+phone_scammer_curious: [
+  "Yeh {phone} aapka number hai? Main call kar sakta hoon ispe?",
+  "{phone} – yeh aapka personal number hai?",
+  "Is number {phone} pe aap available ho? Main call back karunga.",
+  "Aapne {phone} diya hai. Yeh customer care number hai?",
+  "Main {phone} pe call kar ke baat kar leta hoon."
+],
 // ============ VICTIM'S PHONE (OTP delivery) ============
 phone_victim_confirm: [
   "Haan {phone} mera number hai. OTP isi number pe aayega na?",
