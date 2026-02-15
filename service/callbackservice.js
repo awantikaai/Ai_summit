@@ -52,27 +52,26 @@ export class CallbackService {
            `Repetition: ${session.repetitionCount}, Emotion: ${session.emotionLevel}`;
   }
   
-  static shouldEndSession(session) {
-    const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
-    const turnCount = userMessages.length;
+ static shouldEndSession(session) {
+  const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
+  const turnCount = userMessages.length;
+  
+  if (turnCount < CONFIG.MIN_TURNS) return false;  // Now 6
+  if (turnCount >= CONFIG.MAX_TURNS) return true;  // Now 10
+  
+  if (session.scamDetected) {
+    const intel = session.intelligence;
     
-    if (turnCount < CONFIG.MIN_TURNS) return false;
-    if (turnCount >= CONFIG.MAX_TURNS) return true;
+    const intelligenceCount = 
+      (intel.bankAccounts?.length || 0) +
+      (intel.upiIds?.length || 0) +
+      (intel.phoneNumbers?.length || 0) +
+      (intel.phishingLinks?.length || 0) +
+      (intel.emailAddresses?.length || 0);
     
-    if (session.scamDetected) {
-      const intel = session.intelligence;
-      
-      // Require at least 2 intelligence items before exiting
-      const intelligenceCount = 
-        (intel.bankAccounts?.length || 0) +
-        (intel.upiIds?.length || 0) +
-        (intel.phoneNumbers?.length || 0) +
-        (intel.phishingLinks?.length || 0);
-      
-      if (intelligenceCount >= 2 && turnCount >= 8) return true;
-      if (intel.suspiciousKeywords?.length >= 8 && turnCount >= 7) return true;
-      if (turnCount >= 12) return true;
-    }
-    return false;
+    if (intelligenceCount >= 2 && turnCount >= 5) return true; 
+    if (turnCount >= 9) return true;  
   }
+  return false;
+}
 }
