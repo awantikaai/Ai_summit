@@ -1,4 +1,5 @@
 import { PATTERNS } from "./pattern.js";
+
 export class IntelligenceExtractor {
   static createEmptyStore() {
     return {
@@ -6,10 +7,12 @@ export class IntelligenceExtractor {
       upiIds: [],
       phishingLinks: [],
       phoneNumbers: [],
-      suspiciousKeywords: [],
+      emailAddresses: [],      // ← ADD THIS
+      suspiciousKeywords: [],  // Keep for internal logic, but won't be in final output
       employeeIDs: [],
       branchCodes: [],
-      designations: []
+      designations: [],
+      bankNames: []            // ← ADD THIS for better agentNotes
     };
   }
 
@@ -24,10 +27,12 @@ export class IntelligenceExtractor {
     intelligence.upiIds = [...new Set(intelligence.upiIds)];
     intelligence.phishingLinks = [...new Set(intelligence.phishingLinks)];
     intelligence.phoneNumbers = [...new Set(intelligence.phoneNumbers)];
+    intelligence.emailAddresses = [...new Set(intelligence.emailAddresses)];
     intelligence.suspiciousKeywords = [...new Set(intelligence.suspiciousKeywords)];
     intelligence.employeeIDs = [...new Set(intelligence.employeeIDs)];
     intelligence.branchCodes = [...new Set(intelligence.branchCodes)];
     intelligence.designations = [...new Set(intelligence.designations)];
+    intelligence.bankNames = [...new Set(intelligence.bankNames)];
     return intelligence;
   }
 
@@ -38,6 +43,7 @@ export class IntelligenceExtractor {
       accounts16.forEach(acc => {
         if (!intelligence.bankAccounts.includes(acc)) {
           intelligence.bankAccounts.push(acc);
+          console.log(`✅ Extracted Bank Account: ${acc}`);
         }
       });
     }
@@ -46,6 +52,7 @@ export class IntelligenceExtractor {
       accounts12_15.forEach(acc => {
         if (!intelligence.bankAccounts.includes(acc)) {
           intelligence.bankAccounts.push(acc);
+          console.log(`✅ Extracted Bank Account: ${acc}`);
         }
       });
     }
@@ -55,6 +62,7 @@ export class IntelligenceExtractor {
         const clean = acc.replace(/[\s-]/g, '');
         if (!intelligence.bankAccounts.includes(clean)) {
           intelligence.bankAccounts.push(clean);
+          console.log(`✅ Extracted Bank Account: ${clean}`);
         }
       });
     }
@@ -66,6 +74,7 @@ export class IntelligenceExtractor {
         const clean = upi.toLowerCase().trim().replace(/[.,;:!?]$/, '');
         if (clean.includes('@') && clean.length > 3 && !intelligence.upiIds.includes(clean)) {
           intelligence.upiIds.push(clean);
+          console.log(`✅ Extracted UPI ID: ${clean}`);
         }
       });
     }
@@ -76,6 +85,7 @@ export class IntelligenceExtractor {
       phones.forEach(phone => {
         if (!intelligence.phoneNumbers.includes(phone)) {
           intelligence.phoneNumbers.push(phone);
+          console.log(`✅ Extracted Phone: ${phone}`);
         }
       });
     }
@@ -85,6 +95,19 @@ export class IntelligenceExtractor {
         const clean = phone.replace('+91', '').replace(/\s/g, '');
         if (!intelligence.phoneNumbers.includes(clean)) {
           intelligence.phoneNumbers.push(clean);
+          console.log(`✅ Extracted Phone: ${clean}`);
+        }
+      });
+    }
+    
+    // Email addresses
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+    const emails = text.match(emailRegex);
+    if (emails) {
+      emails.forEach(email => {
+        if (!intelligence.emailAddresses.includes(email)) {
+          intelligence.emailAddresses.push(email);
+          console.log(`✅ Extracted Email: ${email}`);
         }
       });
     }
@@ -96,9 +119,21 @@ export class IntelligenceExtractor {
         const normalized = link.toLowerCase().trim();
         if (!intelligence.phishingLinks.includes(normalized)) {
           intelligence.phishingLinks.push(normalized);
+          console.log(`✅ Extracted Link: ${normalized}`);
         }
       });
     }
+    
+    // Bank names (for agentNotes)
+    if (PATTERNS.sbi?.test(text)) intelligence.bankNames.push('SBI');
+    if (PATTERNS.hdfc?.test(text)) intelligence.bankNames.push('HDFC');
+    if (PATTERNS.icici?.test(text)) intelligence.bankNames.push('ICICI');
+    if (PATTERNS.axis?.test(text)) intelligence.bankNames.push('Axis');
+    if (PATTERNS.kotak?.test(text)) intelligence.bankNames.push('Kotak');
+    if (PATTERNS.pnb?.test(text)) intelligence.bankNames.push('PNB');
+    if (PATTERNS.canara?.test(text)) intelligence.bankNames.push('Canara');
+    if (PATTERNS.union?.test(text)) intelligence.bankNames.push('Union');
+    if (PATTERNS.yesbank?.test(text)) intelligence.bankNames.push('Yes Bank');
     
     // Employee IDs, Branch Codes, Designations
     const empIds = text.match(/\b[A-Z0-9]{4,10}\b/g);
@@ -106,6 +141,7 @@ export class IntelligenceExtractor {
       empIds.forEach(id => {
         if (id.length >= 4 && id.length <= 10 && !intelligence.employeeIDs.includes(id)) {
           intelligence.employeeIDs.push(id);
+          console.log(`✅ Extracted Employee ID: ${id}`);
         }
       });
     }
@@ -115,11 +151,12 @@ export class IntelligenceExtractor {
       branchCodes.forEach(code => {
         if (code.length >= 3 && code.length <= 8 && !intelligence.branchCodes.includes(code)) {
           intelligence.branchCodes.push(code);
+          console.log(`✅ Extracted Branch Code: ${code}`);
         }
       });
     }
     
-    // Keywords
+    // Keywords (kept for internal logic only)
     if (PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text)) 
       intelligence.suspiciousKeywords.push('otp_request');
     if (PATTERNS.pin.test(text)) 

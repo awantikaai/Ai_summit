@@ -66,7 +66,6 @@ export class ReplyGenerator {
       return this.getReplyWithParam("upi_second", "{upi}", detected.upiId, session);
     }
 
-    // Phone extraction
     if (detected.hasPhone && detected.phoneNumber) {
       session.phoneMentionCount = (session.phoneMentionCount || 0) + 1;
 
