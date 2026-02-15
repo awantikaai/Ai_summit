@@ -1,158 +1,5 @@
 export const REPLIES = {
-  // Add these to your REPLIES object in replies.js
- // Add these new reply categories to your REPLIES object
 
-// ============ ASK FOR SCAMMER INFO ============
-ask_scammer_name: [
-  "Aapka naam kya hai? Main note kar leta hoon.",
-  "Aap kaun ho? Pehle apna introduction do.",
-  "Aapka naam kya hai? Main call back kar sakta hoon aapko?",
-  "Kaunsa department? Aapka naam kya hai wahan?",
-  "Mujhe aapka naam batao, main record mein rakh leta hoon."
-],
-
-ask_scammer_phone: [
-  "Aapka number kya hai? Main call back karunga.",
-  "Mujhe aapka phone number do, main contact kar leta hoon.",
-  "Aap kis number se bol rahe ho? Main wahan call kar leta hoon.",
-  "Aapka contact number batao, main call back kar sakta hoon?",
-  "Is number ke alawa koi aur number hai aapka?"
-],
-
-ask_employee_id: [
-  "Aapka employee ID kya hai? Main verify kar leta hoon.",
-  "Employee ID batao, main check karunga system mein.",
-  "Aapke employee ID ke aage branch code kya hai?",
-  "SBI mein employee ID ka format kya hota hai? Aapka kya hai?",
-  "Main aapka ID note kar leta hoon. Kya hai?"
-],
-
-ask_official_number: [
-  "Official number kya hai aapka? Main confirm kar leta hoon.",
-  "Aapka department ka official number batao.",
-  "SBI ka official helpline number 1800 hota hai. Aapka kyun nahi?",
-  "Main aapke official number pe call back karunga. Batao.",
-  "Aapka customer care number kya hai? Main wahan call karunga."
-],
-
-// ============ REPETITION RESPONSES ============
-repetition_mild: [
-  "Aapne yeh baat pehle bhi kahi thi. Kuch aur batao?",
-  "Haan haan, yeh aap bol chuke ho. Aage kya?",
-  "Maine sun liya. Ab kya karna hai?",
-  "Yeh aap repeat kar rahe ho. Koi nayi baat?",
-  "Samajh gaya, par aage kya process hai?"
-],
-
-repetition_annoyed: [
-  "Aap baar baar yahi keh rahe ho. Thoda confuse ho raha hoon.",
-  "Yeh teen baar ho gaya same baat. Kuch aur batao.",
-  "Mujhe lag raha hai aap script padh rahe ho. Naya kuch bolo.",
-  "Repetition se kuch nahi hoga. Aage ka batao.",
-  "Main wait kar raha hoon kuch nayi information ka."
-],
-
-repetition_frustrated: [
-  "Aap same baat baar baar bol rahe ho. Main confuse ho raha hoon.",
-  "Yeh 4th baar hai aap yahi keh rahe ho. Kya problem hai?",
-  "Mujhe lagta hai main kuch galat samajh raha hoon. Dobara explain karo.",
-  "Aapki baat samajh aa rahi hai, par kuch naya bhi bolo.",
-  "Main thoda frustrated ho raha hoon. Kuch aur information do."
-],
-
-// ============ PHONE CLARIFICATION ============
-phone_ambiguous: [
-  "Yeh number {phone} kisका hai? Aapka ya mera?",
-  "Confuse ho gaya. {phone} aapka number hai ya mujhe OTP ispe bhejna hai?",
-  "Please clear karo - {phone} aapka hai jahan main call karu?",
-  "Ek baar batao - {phone} kisका number hai?",
-  "Mujhe lag raha hai {phone} aapka number hai. Confirm karo."
-],
-
-// ============ OTP RESEND AGAIN ============
-otp_resend_again: [
-  "Phir se RESEND kar diya. OTP aane do.",
-  "RESEND kiya dubara. Network slow hai shayad.",
-  "Maine RESEND kar diya. Ab wait karta hoon.",
-  "RESEND ho gaya. Kab tak aayega OTP?",
-  "Dobara RESEND bhej diya. Check karo."
-],
-
-// ============ VICTIM PHONE CONFIRMATION ============
-phone_victim_confirm: [
-  "Haan {phone} mera number hai. OTP isi number pe aayega na?",
-  "Mera number {phone} hai. Main wait kar raha hoon OTP ka.",
-  "Haan haan, {phone} mera hi number hai. OTP kab aayega?",
-  "Maine apna number {phone} diya tha registration time pe.",
-  "OTP {phone} pe aana chahiye. Abhi tak nahi aaya."
-],
-
-// ============ SCAMMER PHONE CURIOSITY ============
-phone_scammer_curious: [
-  "Yeh {phone} aapka number hai? Main call kar sakta hoon ispe?",
-  "{phone} – yeh aapka personal number hai?",
-  "Is number {phone} pe aap available ho? Main call back karunga.",
-  "Aapne {phone} diya hai. Yeh customer care number hai?",
-  "Main {phone} pe call kar ke baat kar leta hoon."
-],
-// ============ VICTIM'S PHONE (OTP delivery) ============
-phone_victim_confirm: [
-  "Haan {phone} mera number hai. OTP isi number pe aayega na?",
-  "Mera number {phone} hai. Main wait kar raha hoon OTP ka.",
-  "Haan haan, {phone} mera hi number hai. OTP kab aayega?",
-  "Maine apna number {phone} diya tha registration time pe.",
-  "OTP {phone} pe aana chahiye. Abhi tak nahi aaya."
-],
-
-phone_victim_wait: [
-  "Mera number {phone} hai. OTP nahi aaya abhi tak.",
-  "Network slow hai kya? {phone} pe abhi tak OTP nahi aaya.",
-  "Main check kar raha hoon {phone} pe, koi OTP nahi aaya.",
-  "Dobara bhejo {phone} pe, OTP expire ho gaya.",
-  "{phone} pe message check kiya, koi OTP nahi hai."
-],
-
-// ============ SCAMMER'S PHONE (Their number) ============
-phone_scammer_curious: [
-  "Yeh {phone} aapka number hai? Main call kar sakta hoon ispe?",
-  "{phone} – yeh aapka personal number hai?",
-  "Is number {phone} pe aap available ho? Main call back karunga.",
-  "Aapne {phone} diya hai. Yeh customer care number hai?",
-  "Main {phone} pe call kar ke baat kar leta hoon."
-],
-
-phone_scammer_doubt: [
-  "Maine {phone} pe call kiya, par koi nahi utha. Aap ho wahan?",
-  "Yeh {phone} number busy aa raha hai. Koi aur number hai?",
-  "Is {phone} pe aap nahi utha rahe. Main kya karun?",
-  "Aapka number {phone} sahi hai? Call connect nahi ho raha.",
-  "Dobara number bhejo, {phone} pe call nahi lag raha."
-],
-
-phone_scammer_compare: [
-  "Yeh {phone} number hai. Par SBI ka official number 1800 hota hai na?",
-  "{phone} toh personal number lag raha hai. 1800 wala kyun nahi de rahe?",
-  "SBI ka toll-free 1800 425 3800 hai. Yeh {phone} kyun hai?",
-  "Main 1800 pe call kar ke confirm kar leta hoon. Aapka {phone} nahi chalega.",
-  "Aap bar bar {phone} de rahe ho, par main 1800 pe hi bharosa karunga."
-],
-
-// ============ AMBIGUOUS - Need clarification ============
-phone_ambiguous_first: [
-  "Yeh number {phone} kisका hai? Aapka ya mera?",
-  "{phone} – yeh aapka number hai ya mujhe OTP ispe bhejna hai?",
-  "Confuse ho gaya. {phone} aapka number hai ya mera registered number?",
-  "Please clear karo - {phone} aapka hai na jahan main call karu?",
-  "Yeh {phone} kis liye hai? Main samajh nahi paya."
-],
-
-phone_ambiguous_repeat: [
-  "Aap phir se {phone} bol rahe ho. Lekin yeh aapka number hai ya mera?",
-  "Mujhe lag raha hai {phone} aapka number hai. Main call karun ispe?",
-  "Confusion door karo - {phone} aapka hai ya OTP wahan aayega?",
-  "Ek baar clear batao - {phone} kisका number hai?",
-  "Main wait kar raha hoon clarification ke liye. {phone} kisका hai?"
-],
   // ============ PHASE 1: CONFUSED VICTIM (Turns 1-2) ============
   victim_confused: [
     "Kya? Mera account block ho jayega? Maine toh koi transaction nahi kiya.",
@@ -169,7 +16,7 @@ phone_ambiguous_repeat: [
     "Online transaction tha ya ATM se? Mujhe kuch pata nahi.",
     "Maine apna passbook check kiya, koi entry nahi hai."
   ],
-  
+
   // ============ PHASE 2: TRAPPED VICTIM (Turns 3-4) ============
   victim_scared: [
     "Aap kaunse department se ho? Main dar gaya hoon.",
@@ -187,7 +34,48 @@ phone_ambiguous_repeat: [
     "Official number kya hai aapka? Main confirm kar leta hoon."
   ],
 
-  // ============ PHASE 3: EXTRACTION - SHOCKED & COOPERATIVE ============
+  // ============ ASK FOR SCAMMER INFO ============
+  ask_scammer_name: [
+    "Aapka naam kya hai? Main note kar leta hoon.",
+    "Aap kaun ho? Pehle apna introduction do.",
+    "Aapka naam kya hai? Main call back kar sakta hoon aapko?",
+    "Kaunsa department? Aapka naam kya hai wahan?",
+    "Mujhe aapka naam batao, main record mein rakh leta hoon."
+  ],
+
+  ask_scammer_phone: [
+    "Aapka number kya hai? Main call back karunga.",
+    "Mujhe aapka phone number do, main contact kar leta hoon.",
+    "Aap kis number se bol rahe ho? Main wahan call kar leta hoon.",
+    "Aapka contact number batao, main call back kar sakta hoon?",
+    "Is number ke alawa koi aur number hai aapka?"
+  ],
+
+  ask_employee_id: [
+    "Aapka employee ID kya hai? Main verify kar leta hoon.",
+    "Employee ID batao, main check karunga system mein.",
+    "Aapke employee ID ke aage branch code kya hai?",
+    "SBI mein employee ID ka format kya hota hai? Aapka kya hai?",
+    "Main aapka ID note kar leta hoon. Kya hai?"
+  ],
+
+  ask_branch_code: [
+    "Aapka branch code kya hai? Main verify karunga.",
+    "Kaunsi branch se bol rahe ho? Branch code batao.",
+    "Branch ka IFSC code kya hai?",
+    "Branch code ke saath branch address bhi batao.",
+    "Aapke branch ka telephone number kya hai?"
+  ],
+
+  ask_official_number: [
+    "Official number kya hai aapka? Main confirm kar leta hoon.",
+    "Aapka department ka official number batao.",
+    "SBI ka official helpline number 1800 hota hai. Aapka kyun nahi?",
+    "Main aapke official number pe call back karunga. Batao.",
+    "Aapka customer care number kya hai? Main wahan call karunga."
+  ],
+
+  // ============ ACCOUNT EXTRACTION ============
   account_shocked: [
     "Aapko mera account number {account} kaise pata chala? Yeh toh confidential hai.",
     "{account} – yeh mera account number hai! Aapke paas kaise aaya?",
@@ -203,7 +91,8 @@ phone_ambiguous_repeat: [
     "Account open date kya hai aapke paas? Main check kar leta hoon.",
     "Is account mein joint holder ka naam kya hai? Batao."
   ],
-  
+
+  // ============ UPI EXTRACTION ============
   upi_confirm: [
     "Yeh UPI ID {upi} hai na? Main check kar raha hoon.",
     "{upi} – yeh sahi hai? Kahan se aaya yeh UPI ID?",
@@ -219,8 +108,17 @@ phone_ambiguous_repeat: [
     "Mujhe {upi} pe bhejna hai kuch? Kaise bheju?",
     "Yeh UPI ID safe hai na? Main dar raha hoon."
   ],
-  
-  // ============ PHONE CONTEXT AWARE - FIXED ISSUE ============
+
+  // ============ AUTHORITY BELIEVE ============
+  authority_believe: [
+    "Aap SBI se ho? Aapka employee ID kya hai? Main note kar leta hoon.",
+    "Fraud prevention team se ho? Aapka department code kya hai?",
+    "Aapka naam kya hai? Main call back kar sakta hoon aapko?",
+    "Aapke manager ka naam kya hai? Unse baat karni hai.",
+    "Aapka employee ID aur branch code batao, main record mein rakh leta hoon."
+  ],
+
+  // ============ PHONE CONTEXT AWARE ============
   phone_victim_confirm: [
     "Haan {phone} mera number hai. OTP isi number pe aayega na?",
     "Mera number {phone} hai. Main wait kar raha hoon OTP ka.",
@@ -237,12 +135,12 @@ phone_ambiguous_repeat: [
     "{phone} pe message check kiya, koi OTP nahi hai."
   ],
   
-  phone_scammer_ask: [
+  phone_scammer_curious: [
     "Yeh {phone} aapka number hai? Main call kar sakta hoon ispe?",
-    "{phone} – yeh aapka personal number hai ya office ka?",
+    "{phone} – yeh aapka personal number hai?",
     "Is number {phone} pe aap available ho? Main call back karunga.",
     "Aapne {phone} diya hai. Yeh customer care number hai?",
-    "Main {phone} pe call kar ke confirm kar leta hoon."
+    "Main {phone} pe call kar ke baat kar leta hoon."
   ],
   
   phone_scammer_doubt: [
@@ -253,29 +151,30 @@ phone_ambiguous_repeat: [
     "Dobara number bhejo, {phone} pe call nahi lag raha."
   ],
   
-  phone_scammer_reject: [
-    "Yeh {phone} number SBI ka official number nahi lag raha.",
-    "{phone} ke jagah 1800 wala number do na, main wahan call kar leta hoon.",
-    "Aap bar bar {phone} de rahe ho, par main 1800 pe call karunga.",
-    "Mujhe SBI ka 1800 number chahiye, yeh {phone} nahi chalega.",
-    "SBI ka official number 1800 hota hai, yeh {phone} kyun hai?"
-  ],
-  
-  authority_believe: [
-    "Aap SBI se ho? Aapka employee ID kya hai? Main note kar leta hoon.",
-    "Fraud prevention team se ho? Aapka department code kya hai?",
-    "Aapka naam kya hai? Main call back kar sakta hoon aapko?",
-    "Aapke manager ka naam kya hai? Unse baat karni hai.",
-    "Aapka employee ID aur branch code batao, main record mein rakh leta hoon."
+  phone_scammer_compare: [
+    "Yeh {phone} number hai. Par SBI ka official number 1800 hota hai na?",
+    "{phone} toh personal number lag raha hai. 1800 wala kyun nahi de rahe?",
+    "SBI ka toll-free 1800 425 3800 hai. Yeh {phone} kyun hai?",
+    "Main 1800 pe call kar ke confirm kar leta hoon. Aapka {phone} nahi chalega.",
+    "Aap bar bar {phone} de rahe ho, par main 1800 pe hi bharosa karunga."
   ],
 
-  // ============ PHASE 4: OTP - ACTING TRAPPED ============
+  // ============ PHONE AMBIGUOUS ============
+  phone_ambiguous: [
+    "Yeh number {phone} kisका hai? Aapka ya mera?",
+    "Confuse ho gaya. {phone} aapka number hai ya mujhe OTP ispe bhejna hai?",
+    "Please clear karo - {phone} aapka hai jahan main call karu?",
+    "Ek baar batao - {phone} kisका number hai?",
+    "Mujhe lag raha hai {phone} aapka number hai. Confirm karo."
+  ],
+
+  // ============ PROGRESSIVE OTP ============
   otp_first_trapped: [
     "OTP aaya hai! Ab main kya karun? Aap batao.",
     "OTP mil gaya. Kahan bhejna hai yeh?",
     "OTP aaya, par main dar raha hoon share karne se. Safe hai na?",
     "Maine OTP dekha. Aapka employee ID kya tha? Main note kar leta hoon.",
-    "OTP {code} hai. Ab kya process hai?"
+    "OTP aaya hai. Ab kya process hai?"
   ],
   
   otp_second_confused: [
@@ -317,8 +216,16 @@ phone_ambiguous_repeat: [
     "RESEND bhej diya. Aapka reporting manager ka naam kya hai?",
     "RESEND kiya. OTP aa raha hoga. Aapka designation kya hai?"
   ],
+  
+  otp_resend_again: [
+    "Phir se RESEND kar diya. OTP aane do.",
+    "RESEND kiya dubara. Network slow hai shayad.",
+    "Maine RESEND kar diya. Ab wait karta hoon.",
+    "RESEND ho gaya. Kab tak aayega OTP?",
+    "Dobara RESEND bhej diya. Check karo."
+  ],
 
-  // ============ THREAT RESPONSES - SCARED VICTIM ============
+  // ============ THREAT RESPONSES ============
   permanent_scared: [
     "Permanent block? Mera account hamesha ke liye block ho jayega?",
     "Nahi please, mera account mat block karo. Main kya karun?",
@@ -335,7 +242,7 @@ phone_ambiguous_repeat: [
     "RBI aise jurmana lagata hai kya? Main confuse hoon."
   ],
 
-  // ============ LINK & OFFER - CURIOUS VICTIM ============
+  // ============ LINK & OFFER ============
   link_curious: [
     "Yeh link safe hai? Main click karun ispe?",
     "Link khola toh kya hoga? Mera phone safe hai na?",
@@ -352,7 +259,7 @@ phone_ambiguous_repeat: [
     "Main interested hoon. Aage ka process kya hai?"
   ],
 
-  // ============ POLICY - CONFUSED VICTIM ============
+  // ============ POLICY ============
   policy_confused: [
     "RBI kya kehta hai aise cases mein? Mujhe pata nahi.",
     "Bank ke rules kya hain? Main nahi jaanta.",
@@ -361,13 +268,65 @@ phone_ambiguous_repeat: [
     "Aap hi batao kya sahi hai. Main aapke bharose hoon."
   ],
 
-  // ============ EXIT PHASE - NATURAL ENDING ============
+  // ============ REPETITION RESPONSES ============
+  repetition_mild: [
+    "Aapne yeh baat pehle bhi kahi thi. Kuch aur batao?",
+    "Haan haan, yeh aap bol chuke ho. Aage kya?",
+    "Maine sun liya. Ab kya karna hai?",
+    "Yeh aap repeat kar rahe ho. Koi nayi baat?",
+    "Samajh gaya, par aage kya process hai?"
+  ],
+
+  repetition_annoyed: [
+    "Aap baar baar yahi keh rahe ho. Thoda confuse ho raha hoon.",
+    "Yeh teen baar ho gaya same baat. Kuch aur batao.",
+    "Mujhe lag raha hai aap script padh rahe ho. Naya kuch bolo.",
+    "Repetition se kuch nahi hoga. Aage ka batao.",
+    "Main wait kar raha hoon kuch nayi information ka."
+  ],
+
+  repetition_frustrated: [
+    "Aap same baat baar baar bol rahe ho. Main confuse ho raha hoon.",
+    "Yeh 4th baar hai aap yahi keh rahe ho. Kya problem hai?",
+    "Mujhe lagta hai main kuch galat samajh raha hoon. Dobara explain karo.",
+    "Aapki baat samajh aa rahi hai, par kuch naya bhi bolo.",
+    "Main thoda frustrated ho raha hoon. Kuch aur information do."
+  ],
+
+  // ============ FAMILY ============
+  family_worried: [
+    "Mere papa bank mein kaam karte hain. Main unse puch leta hoon.",
+    "Mera bhai bhi SBI mein hai. Use call karta hoon pehle.",
+    "Meri wife ne kaha yeh scam ho sakta hai. Aap sahi toh ho?",
+    "Mere friend ke saath aise hi hua tha. Main usse puchta hoon.",
+    "Mere cousin ne kaha aise calls pe dhyan mat do. Main kya karun?"
+  ],
+
+  // ============ TOLL-FREE ============
+  tollfree_curious: [
+    "SBI ka 1800 425 3800 number hai na? Main wahan call kar leta hoon.",
+    "1800 112 211 pe call karun? Wahan se confirm ho jayega?",
+    "Mujhe SBI ka 1800 wala number pata hai. Wahan call kar ke puchta hoon.",
+    "Toll-free number 1800 wala do. Main abhi call karta hoon.",
+    "Main 1800 pe call kar ke confirm kar lunga ki aap sahi ho."
+  ],
+
+  // ============ BRANCH VISIT ============
   branch_visit: [
-    "Main kal subah branch aa raha hoon. Branch manager ka naam kya hai?",
-    "Aap branch ka address bhejo. Main abhi aata hoon.",
-    "Meri home branch Andheri West mein hai. Wahan jau kya?",
-    "Branch manager se milna hai. Unka extension number kya hai?",
-    "Main branch jakar hi complaint karunga. Aapka ID card dikhana hoga."
+    "Main kal subah 11 baje branch aa raha hoon. Branch manager ka naam kya hai?",
+    "Aap branch ka address bhejo, main abhi aata hoon.",
+    "Meri home branch Andheri West mein hai. Wahan jau?",
+    "Branch manager se baat karni hai. Unka naam kya hai?",
+    "Main branch jakar hi verification karunga. Address do."
+  ],
+
+  // ============ CYBER ============
+  cyber_threat: [
+    "Main 1930 pe call kar raha hoon. Aapka number cyber cell ke paas hai.",
+    "Maine cyber crime portal pe complaint file kar di.",
+    "Cyber cell ne kaha aise numbers block kar do. Main block kar raha hoon.",
+    "Aapka number trace ho raha hai cyber cell se.",
+    "Main branch aur cyber cell dono ko inform kar dunga."
   ],
   
   cyber_complaint: [
@@ -377,15 +336,8 @@ phone_ambiguous_repeat: [
     "Cyber crime portal pe online complaint kaise karein?",
     "Main branch aur cyber cell dono ko inform kar dunga."
   ],
-  
-  cyber_threat: [
-    "Main 1930 pe call kar raha hoon. Aapka number cyber cell ke paas hai.",
-    "Maine cyber crime portal pe complaint file kar di.",
-    "Cyber cell ne kaha aise numbers block kar do. Main block kar raha hoon.",
-    "Aapka number trace ho raha hai cyber cell se.",
-    "Main media ko bhi inform kar dunga aapke baare mein."
-  ],
-  
+
+  // ============ FINAL EXIT ============
   final_goodbye: [
     "Main branch ja raha hoon. Aap apna kaam karo.",
     "Maine SBI customer care ko inform kar diya hai.",
@@ -394,34 +346,7 @@ phone_ambiguous_repeat: [
     "Aapka number main block kar raha hoon. Don't call again."
   ],
 
-  // ============ FAMILY - WORRIED VICTIM ============
-  family_worried: [
-    "Mere papa bank mein kaam karte hain. Main unse puch leta hoon.",
-    "Mera bhai bhi SBI mein hai. Use call karta hoon pehle.",
-    "Meri wife ne kaha yeh scam ho sakta hai. Aap sahi toh ho?",
-    "Mere friend ke saath aise hi hua tha. Main usse puchta hoon.",
-    "Mere cousin ne kaha aise calls pe dhyan mat do. Main kya karun?"
-  ],
-
-  // ============ TOLLFREE - CURIOUS VICTIM ============
-  tollfree_curious: [
-    "SBI ka 1800 425 3800 number hai na? Main wahan call kar leta hoon.",
-    "1800 112 211 pe call karun? Wahan se confirm ho jayega?",
-    "Mujhe SBI ka 1800 wala number pata hai. Wahan call kar ke puchta hoon.",
-    "Toll-free number 1800 wala do. Main abhi call karta hoon.",
-    "Main 1800 pe call kar ke confirm kar lunga ki aap sahi ho."
-  ],
-
-  // ============ BRANCH - WILLING TO VISIT ============
-  branch_visit: [
-    "Main kal subah 11 baje branch aa raha hoon.",
-    "Aap branch ka address bhejo, main abhi aata hoon.",
-    "Meri home branch Andheri West mein hai. Wahan jau?",
-    "Branch manager se baat karni hai. Unka naam kya hai?",
-    "Main branch jakar hi verification karunga. Address do."
-  ],
-
-  // ============ FALLBACK - SCARED VICTIM ============
+  // ============ FALLBACK ============
   fallback_scared: [
     "Mujhe samajh nahi aaya. Aap hi batao kya karna hai.",
     "Main confuse hoon. Aap guide karo na.",
