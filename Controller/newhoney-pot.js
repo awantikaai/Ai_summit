@@ -106,7 +106,7 @@ export const honey_pot = async (req, res) => {
     
     // ============ ADD 10 SECOND DELAY BEFORE REPLY ============
     console.log(`⏱️ Waiting 10 seconds before replying (Turn ${turnCount})...`);
-    await delay(10000);
+    await delay(6000);
     console.log(`✅ Delay complete - sending reply`);
     
     if (CONFIG.USE_PERPLEXITY && !hasKeywords && isEarlyTurn) {
