@@ -3,7 +3,7 @@ import axios from "axios";
 export class CallbackService {
   static async sendFinalResult(sessionId, session) {
 
-      await new Promise(resolve => setTimeout(resolve, 10000));
+    
     const intelligence = session.intelligence;
     const payload = {
       sessionId: sessionId,
