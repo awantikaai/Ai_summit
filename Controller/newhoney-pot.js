@@ -4,7 +4,11 @@ import { IntelligenceExtractor } from '../utils/intelligenceextract.js';
 import  KeywordDetector from '../service/keywordDetector.js';
 import { PerplexityService } from '../service/perplexity.js';
 import { CallbackService } from '../service/callbackservice.js';
+
 const sessions = new Map();
+
+// ============ DELAY FUNCTION ============
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const honey_pot = async (req, res) => {
   try {
@@ -19,6 +23,7 @@ export const honey_pot = async (req, res) => {
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, {
         id: sessionId,
+        startTime: Date.now(), // Track when session started
         scamDetected: false,
         conversationHistory: [],
         intelligence: IntelligenceExtractor.createEmptyStore(),
@@ -39,7 +44,9 @@ export const honey_pot = async (req, res) => {
         lastScammerMessage: '',
         repetitionCount: 0,
         emotionLevel: 0,
-        pressureScore: 0
+        pressureScore: 0,
+        // Add memory for ReplyGenerator
+        memory: null
       });
     }
     
@@ -64,15 +71,15 @@ export const honey_pot = async (req, res) => {
     
     IntelligenceExtractor.extractFromText(message.text, session.intelligence);
     
-   session.pressureScore = 
-  (session.otpRequests >= 3 ? 1 : 0) +
-  (session.threatCount >= 2 ? 1 : 0) +
-  (detected.hasPermanent ? 1 : 0) +
-  (detected.hasFine ? 1 : 0) +
-  (detected.hasCyber ? 1 : 0) +
-  (session.repetitionCount >= 2 ? 1 : 0) +
-  (detected.hasEmployeeID ? 1 : 0) +
-  (detected.hasDesignation ? 1 : 0);
+    session.pressureScore = 
+      (session.otpRequests >= 3 ? 1 : 0) +
+      (session.threatCount >= 2 ? 1 : 0) +
+      (detected.hasPermanent ? 1 : 0) +
+      (detected.hasFine ? 1 : 0) +
+      (detected.hasCyber ? 1 : 0) +
+      (session.repetitionCount >= 2 ? 1 : 0) +
+      (detected.hasEmployeeID ? 1 : 0) +
+      (detected.hasDesignation ? 1 : 0);
     
     if (session.lockToExit) {
       session.emotionLevel = 5;
@@ -97,6 +104,11 @@ export const honey_pot = async (req, res) => {
     const turnCount = session.conversationHistory.filter(m => m.sender === 'user').length + 1;
     const isEarlyTurn = turnCount <= CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX;
     
+    // ============ ADD 10 SECOND DELAY BEFORE REPLY ============
+    console.log(`⏱️ Waiting 10 seconds before replying (Turn ${turnCount})...`);
+    await delay(10000);
+    console.log(`✅ Delay complete - sending reply`);
+    
     if (CONFIG.USE_PERPLEXITY && !hasKeywords && isEarlyTurn) {
       try {
         const category = await PerplexityService.selectCategory(message.text, session.conversationHistory, CONFIG);
@@ -107,7 +119,7 @@ export const honey_pot = async (req, res) => {
     }
     
     if (!reply) {
-      reply = ReplyGenerator.generateReply(detected, session);
+      reply = await ReplyGenerator.generateReply(detected, session, message.text, session.conversationHistory);
     }
     
     session.conversationHistory.push({
@@ -118,13 +130,20 @@ export const honey_pot = async (req, res) => {
     
     session.turnCount++;
     
+    // ============ CHECK IF SESSION SHOULD END ============
     if (CallbackService.shouldEndSession(session, CONFIG)) {
-      console.log(`\n🏁 Session ${sessionId} ending - Sending callback...`);
+      console.log(`\n🏁 Session ${sessionId} ending - Waiting 10 seconds before sending callback...`);
+      
+      // ============ ADD 10 SECOND DELAY BEFORE CALLBACK ============
+      await delay(10000);
+      console.log(`✅ 10 second delay complete - sending callback now`);
+      
       await CallbackService.sendFinalResult(sessionId, session, CONFIG);
       sessions.delete(sessionId);
     }
     
     return res.json({ status: 'success', reply: reply });
+    
   } catch (error) {
     console.error('❌ Controller error:', error);
     return res.json({
@@ -134,12 +153,14 @@ export const honey_pot = async (req, res) => {
   }
 };
 
+// Clean up old sessions every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [sessionId, session] of sessions.entries()) {
     const lastMessage = session.conversationHistory[session.conversationHistory.length - 1];
     if (lastMessage && (now - lastMessage.timestamp) > 3600000) {
       sessions.delete(sessionId);
+      console.log(`🧹 Cleaned up stale session: ${sessionId}`);
     }
   }
 }, 300000);
