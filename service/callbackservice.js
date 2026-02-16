@@ -11,8 +11,7 @@ export class CallbackService {
         bankAccounts: intelligence.bankAccounts,
         upiIds: intelligence.upiIds,
         phishingLinks: intelligence.phishingLinks,
-        phoneNumbers: intelligence.phoneNumbers,
-        suspiciousKeywords: intelligence.suspiciousKeywords
+        phoneNumbers: intelligence.phoneNumbers
       },
       agentNotes: this.generateAgentNotes(session, intelligence)
     };
