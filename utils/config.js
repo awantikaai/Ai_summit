@@ -3,7 +3,7 @@ dotenv.config("../.env")
 export const CONFIG = {
   SCAM_THRESHOLD: 45,
   MIN_TURNS: 6,
-  MAX_TURNS: 7,
+  MAX_TURNS: 8,
   CALLBACK_URL: 'https://hackathon.guvi.in/api/updateHoneyPotFinalResult',
   CALLBACK_TIMEOUT: 5000,
   USE_PERPLEXITY: true,
