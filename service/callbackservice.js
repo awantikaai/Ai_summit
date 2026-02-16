@@ -22,17 +22,20 @@ export class CallbackService {
     const uniqueUpiIds = [...new Set(intelligence.upiIds || [])];
     const uniquePhishingLinks = [...new Set(intelligence.phishingLinks || [])];
     const uniqueEmailAddresses = [...new Set(intelligence.emailAddresses || [])];
-    const uniqueEmployeeIDs = [...new Set(intelligence.employeeIDs || [])];
     
     // Format phone numbers with +91- prefix
     const formattedPhones = uniquePhoneNumbers.map(phone => {
       if (phone.length === 10 && !phone.startsWith('+91')) {
         return `+91-${phone}`;
       }
+      // Clean up any +91 without hyphen
+      if (phone.startsWith('+91') && !phone.includes('-')) {
+        return phone.replace('+91', '+91-');
+      }
       return phone;
     });
     
-    // ============ BUILD EXTRACTED INTELLIGENCE - ONLY UNIQUE VALUES ============
+    // ============ BUILD EXTRACTED INTELLIGENCE - ONLY REQUIRED FIELDS ============
     const extractedIntelligence = {};
     
     if (formattedPhones.length > 0) {
@@ -50,30 +53,22 @@ export class CallbackService {
     if (uniqueEmailAddresses.length > 0) {
       extractedIntelligence.emailAddresses = uniqueEmailAddresses;
     }
-    if (uniqueEmployeeIDs.length > 0) {
-      extractedIntelligence.employeeIDs = uniqueEmployeeIDs;
-    }
     
     const payload = {
       sessionId: sessionId,
       scamDetected: session.scamDetected || false,
       totalMessagesExchanged: session.conversationHistory.length,
-      engagementMetrics: {
-        totalMessagesExchanged: session.conversationHistory.length,
-        engagementDurationSeconds: engagementDurationSeconds
-      },
       extractedIntelligence: extractedIntelligence,
       agentNotes: this.generateAgentNotes(session, {
         phoneCount: formattedPhones.length,
         bankCount: uniqueBankAccounts.length,
         upiCount: uniqueUpiIds.length,
         linkCount: uniquePhishingLinks.length,
-        emailCount: uniqueEmailAddresses.length,
-        empCount: uniqueEmployeeIDs.length
+        emailCount: uniqueEmailAddresses.length
       })
     };
     
-    console.log('\n📤 CALLBACK PAYLOAD (Deduplicated):');
+    console.log('\n📤 CALLBACK PAYLOAD:');
     console.log(JSON.stringify(payload, null, 2));
     
     try {
@@ -117,10 +112,6 @@ export class CallbackService {
       tactics.push('email address harvesting');
       extractedItems.push(`${counts.emailCount} email addresses`);
     }
-    if (counts.empCount > 0) {
-      tactics.push('employee ID sharing');
-      extractedItems.push(`${counts.empCount} employee IDs`);
-    }
     
     if (session.threatCount > 2) tactics.push('multiple threats');
     if (session.otpRequests > 3) tactics.push('repeated OTP requests');
@@ -143,6 +134,15 @@ export class CallbackService {
     const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
     const turnCount = userMessages.length;
     
+    // Check if user already said they're going to branch
+    const lastUserMessage = session.conversationHistory[session.conversationHistory.length - 1]?.text || '';
+    if (lastUserMessage.includes('branch ja raha hoon') || 
+        lastUserMessage.includes('baat nahi kar sakta') ||
+        lastUserMessage.includes('end karte hain')) {
+      console.log(`✅ EXIT: User initiated exit`);
+      return true;
+    }
+    
     if (turnCount < 5) return false;
     
     const intel = session.intelligence;
@@ -151,33 +151,25 @@ export class CallbackService {
     const phoneCount = [...new Set(intel.phoneNumbers || [])].length;
     const bankCount = [...new Set(intel.bankAccounts || [])].length;
     const upiCount = [...new Set(intel.upiIds || [])].length;
-    const linkCount = [...new Set(intel.phishingLinks || [])].length;
     const emailCount = [...new Set(intel.emailAddresses || [])].length;
     
-    // Count unique data types (not total items)
+    // Count unique data types
     const extractionTypes = [];
     if (phoneCount > 0) extractionTypes.push('phone');
     if (bankCount > 0) extractionTypes.push('bank');
     if (upiCount > 0) extractionTypes.push('upi');
-    if (linkCount > 0) extractionTypes.push('link');
     if (emailCount > 0) extractionTypes.push('email');
     
     const typeCount = extractionTypes.length;
     
-    // EXIT: Got 2+ unique data types AND at least 5 turns
+    // EXIT: Got 2+ unique data types
     if (typeCount >= 2 && turnCount >= 5) {
-      console.log(`✅ EXIT: Collected ${typeCount} unique data types in ${turnCount} turns`);
-      return true;
-    }
-    
-    // EXIT: Got phone + (bank/UPI) AND 5+ turns
-    if (phoneCount > 0 && (bankCount > 0 || upiCount > 0) && turnCount >= 5) {
-      console.log(`✅ EXIT: Got phone + other data`);
+      console.log(`✅ EXIT: Collected ${typeCount} unique data types`);
       return true;
     }
     
     // EXIT: Max turns
-    if (turnCount >= 10) {
+    if (turnCount >= 8) {
       console.log(`✅ EXIT: Max turns reached`);
       return true;
     }

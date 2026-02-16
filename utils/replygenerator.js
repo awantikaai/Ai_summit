@@ -14,14 +14,13 @@ export class ReplyGenerator {
     // Initialize memory with extraction tracking
     if (!session.memory) {
       session.memory = {
-        // Track what we've already extracted (using Sets to prevent duplicates)
+        // Track what we've already extracted
         extracted: {
           phone: new Set(),
           bankAccount: new Set(),
           upi: new Set(),
           email: new Set(),
           link: new Set(),
-          employeeID: new Set(),
           name: null
         },
         
@@ -32,21 +31,16 @@ export class ReplyGenerator {
           upi: false,
           email: false,
           link: false,
-          name: false,
-          employeeID: false,
-          branchCode: false,
-          ifsc: false,
-          reference: false
+          name: false
         },
         
-        // Scammer's info (first occurrence only)
+        // Scammer's info
         scammerInfo: {
           phone: null,
           account: null,
           upi: null,
           email: null,
           link: null,
-          employeeID: null,
           name: null
         },
         
@@ -55,11 +49,16 @@ export class ReplyGenerator {
         otpRequests: 0,
         turnCount: 0,
         usedReplies: new Set(),
-        detectedScamType: null
+        detectedScamType: null,
+        
+        // Exit flags
+        exitInitiated: false,
+        exitReason: null,
+        dataCollected: []
       };
     }
 
-    // ============ EXTRACT UNIQUE DATA ONLY ============
+    // ============ EXTRACT UNIQUE DATA ============
     this.extractUniqueData(detected, session, messageText);
 
     // ============ DETECT SCAM TYPE ============
@@ -72,6 +71,22 @@ export class ReplyGenerator {
     // ============ UPDATE COUNTERS ============
     if (detected.hasThreat) session.memory.threatCount++;
     if (detected.hasOTP) session.memory.otpRequests++;
+
+    // ============ CHECK FOR EXIT CONDITIONS ============
+    const exitCheck = this.shouldExit(session);
+    if (exitCheck.shouldExit) {
+      session.memory.exitInitiated = true;
+      session.memory.exitReason = exitCheck.reason;
+      console.log(`🚪 EXITING: ${exitCheck.reason}`);
+      
+      // If we already collected data, use appropriate exit message
+      const extractionCount = this.getExtractionCount(session);
+      if (extractionCount >= 2) {
+        return this.getUniqueReply("final_goodbye", session);
+      } else {
+        return "Main baad mein baat karta hoon. Bye.";
+      }
+    }
 
     // ============ CHECK FOR AMBIGUOUS MESSAGES ============
     const hasClearScamIndicators = this.hasScamIndicators(detected);
@@ -93,48 +108,112 @@ export class ReplyGenerator {
       return this.getUniqueReply("greeting_response", session);
     }
 
-    // ============ CHECK IF WE HAVE ENOUGH DATA TO EXIT ============
+    // ============ CHECK DATA COLLECTION PROGRESS ============
     const extractionCount = this.getExtractionCount(session);
+    const missingData = this.getMissingDataTypes(session, scamType);
     
-    // If we have 2+ data types and at least 5 turns, exit
-    if (extractionCount >= 2 && session.turnCount >= 5) {
-      console.log(`✅ Collected ${extractionCount} data types - exiting`);
-      return this.getUniqueReply("final_goodbye", session);
-    }
+    // Log progress
+    console.log(`📊 Data collected: ${extractionCount} types | Missing: ${missingData.join(', ') || 'none'}`);
 
-    // ============ TURN-BASED FLOW USING REPLIES.JS ============
+    // ============ TURN-BASED FLOW ============
     
-    // Turn 1: Initial confusion based on scam type
+    // Turn 1: Initial response based on scam type
     if (session.turnCount === 0) {
-      return this.getScamTypeInitialReply(scamType, session);
+      return this.getInitialReply(scamType, session);
     }
     
-    // Turn 2: Show interest, ask for name
+    // Turn 2: Ask for name
     if (session.turnCount === 1) {
       if (!session.memory.asked.name) {
         session.memory.asked.name = true;
         return this.getUniqueReply("ask_scammer_name", session);
       }
-      return this.getUniqueReply("victim_worried", session);
     }
     
-    // Turn 3: Ask for phone number
+    // Turn 3: Ask for phone
     if (session.turnCount === 2) {
-      if (!session.memory.asked.phone) {
+      if (!session.memory.asked.phone && !session.memory.extracted.phone.size) {
         session.memory.asked.phone = true;
         return this.getUniqueReply("ask_scammer_phone", session);
       }
-      return this.getUniqueReply("victim_asking", session);
     }
     
-    // Turn 4+: Ask for missing data based on scam type
-    return this.getMissingDataReply(scamType, session);
+    // Turn 4: Ask for email
+    if (session.turnCount === 3) {
+      if (!session.memory.asked.email && !session.memory.extracted.email.size) {
+        session.memory.asked.email = true;
+        return this.getUniqueReply("email_send_request", session);
+      }
+    }
+    
+    // Turn 5+: Ask for missing data based on scam type
+    if (session.turnCount >= 4) {
+      return this.getMissingDataReply(scamType, session);
+    }
+    
+    return this.getUniqueReply("victim_asking", session);
   }
 
   // ===============================
-  // Get Scam Type Initial Reply from REPLIES
+  // EXIT DECISION ENGINE
   // ===============================
-  static getScamTypeInitialReply(scamType, session) {
+  static shouldExit(session) {
+    const memory = session.memory;
+    const extractionCount = this.getExtractionCount(session);
+    
+    // EXIT CONDITION 1: Already have 2+ data types and minimum turns
+    if (extractionCount >= 2 && session.turnCount >= 4) {
+      return {
+        shouldExit: true,
+        reason: `Collected ${extractionCount} data types in ${session.turnCount} turns`
+      };
+    }
+    
+    // EXIT CONDITION 2: Got phone + (bank/email/upi) combo
+    if (memory.extracted.phone.size > 0) {
+      if (memory.extracted.bankAccount.size > 0 && session.turnCount >= 4) {
+        return {
+          shouldExit: true,
+          reason: 'Got phone + bank account'
+        };
+      }
+      if (memory.extracted.email.size > 0 && session.turnCount >= 4) {
+        return {
+          shouldExit: true,
+          reason: 'Got phone + email'
+        };
+      }
+      if (memory.extracted.upi.size > 0 && session.turnCount >= 4) {
+        return {
+          shouldExit: true,
+          reason: 'Got phone + UPI'
+        };
+      }
+    }
+    
+    // EXIT CONDITION 3: Max turns reached
+    if (session.turnCount >= 6) {
+      return {
+        shouldExit: true,
+        reason: 'Max turns reached'
+      };
+    }
+    
+    // EXIT CONDITION 4: High threats + some data
+    if (memory.threatCount >= 3 && extractionCount >= 1 && session.turnCount >= 4) {
+      return {
+        shouldExit: true,
+        reason: 'High threats with some data'
+      };
+    }
+    
+    return { shouldExit: false };
+  }
+
+  // ===============================
+  // Get Initial Reply Based on Scam Type
+  // ===============================
+  static getInitialReply(scamType, session) {
     switch(scamType) {
       case 'bank':
         return this.getUniqueReply("victim_confused", session);
@@ -158,16 +237,17 @@ export class ReplyGenerator {
   }
 
   // ===============================
-  // Get Missing Data Reply from REPLIES
+  // Get Missing Data Reply
   // ===============================
   static getMissingDataReply(scamType, session) {
     const missing = this.getMissingDataTypes(session, scamType);
     
+    // If nothing missing, exit
     if (missing.length === 0) {
       return this.getUniqueReply("final_goodbye", session);
     }
     
-    // Ask for missing data in priority order
+    // Priority order: phone > name > scam-specific > email
     if (missing.includes('phone') && !session.memory.asked.phone) {
       session.memory.asked.phone = true;
       return this.getUniqueReply("ask_scammer_phone", session);
@@ -194,11 +274,6 @@ export class ReplyGenerator {
       return this.getUniqueReply("link_curious", session);
     }
     
-    if (missing.includes('employeeID') && !session.memory.asked.employeeID) {
-      session.memory.asked.employeeID = true;
-      return this.getUniqueReply("ask_employee_id", session);
-    }
-    
     if (missing.includes('email') && !session.memory.asked.email) {
       session.memory.asked.email = true;
       return this.getUniqueReply("email_send_request", session);
@@ -208,7 +283,7 @@ export class ReplyGenerator {
   }
 
   // ===============================
-  // Extract Unique Data Only (No Duplicates)
+  // Extract Unique Data Only
   // ===============================
   static extractUniqueData(detected, session, messageText) {
     const memory = session.memory;
@@ -220,58 +295,53 @@ export class ReplyGenerator {
     if (!intel.upiIds) intel.upiIds = [];
     if (!intel.emailAddresses) intel.emailAddresses = [];
     if (!intel.phishingLinks) intel.phishingLinks = [];
-    if (!intel.employeeIDs) intel.employeeIDs = [];
     
-    // Extract phone number - UNIQUE only
+    // Extract phone number
     if (detected.phoneNumber && !memory.extracted.phone.has(detected.phoneNumber)) {
       memory.extracted.phone.add(detected.phoneNumber);
       memory.scammerInfo.phone = detected.phoneNumber;
       intel.phoneNumbers.push(detected.phoneNumber);
       console.log(`📞 NEW phone: ${detected.phoneNumber}`);
+      memory.dataCollected.push('phone');
     }
     
-    // Extract bank account - UNIQUE only
+    // Extract bank account
     if (detected.hasAccount && detected.accountNumber && 
         !memory.extracted.bankAccount.has(detected.accountNumber)) {
       memory.extracted.bankAccount.add(detected.accountNumber);
       memory.scammerInfo.account = detected.accountNumber;
       intel.bankAccounts.push(detected.accountNumber);
       console.log(`💰 NEW account: ${detected.accountNumber}`);
+      memory.dataCollected.push('account');
     }
     
-    // Extract UPI ID - UNIQUE only
+    // Extract UPI ID
     if (detected.hasUPI && detected.upiId && 
         !memory.extracted.upi.has(detected.upiId)) {
       memory.extracted.upi.add(detected.upiId);
       memory.scammerInfo.upi = detected.upiId;
       intel.upiIds.push(detected.upiId);
       console.log(`💳 NEW UPI: ${detected.upiId}`);
+      memory.dataCollected.push('upi');
     }
     
-    // Extract email - UNIQUE only
+    // Extract email
     if (detected.extractedEmail && !memory.extracted.email.has(detected.extractedEmail)) {
       memory.extracted.email.add(detected.extractedEmail);
       memory.scammerInfo.email = detected.extractedEmail;
       intel.emailAddresses.push(detected.extractedEmail);
       console.log(`📧 NEW email: ${detected.extractedEmail}`);
+      memory.dataCollected.push('email');
     }
     
-    // Extract link - UNIQUE only
+    // Extract link
     const linkMatch = messageText.match(/(https?:\/\/[^\s]+|bit\.ly\/[^\s]+|tinyurl\.com\/[^\s]+)/i);
     if (linkMatch && !memory.extracted.link.has(linkMatch[0])) {
       memory.extracted.link.add(linkMatch[0]);
       memory.scammerInfo.link = linkMatch[0];
       intel.phishingLinks.push(linkMatch[0]);
       console.log(`🔗 NEW link: ${linkMatch[0]}`);
-    }
-    
-    // Extract employee ID - UNIQUE only
-    if (detected.hasEmployeeID && detected.employeeID && 
-        !memory.extracted.employeeID.has(detected.employeeID)) {
-      memory.extracted.employeeID.add(detected.employeeID);
-      memory.scammerInfo.employeeID = detected.employeeID;
-      intel.employeeIDs.push(detected.employeeID);
-      console.log(`🆔 NEW employee ID: ${detected.employeeID}`);
+      memory.dataCollected.push('link');
     }
     
     // Extract name
@@ -279,11 +349,12 @@ export class ReplyGenerator {
       memory.extracted.name = detected.extractedName;
       memory.scammerInfo.name = detected.extractedName;
       console.log(`📝 Got name: ${detected.extractedName}`);
+      memory.dataCollected.push('name');
     }
   }
 
   // ===============================
-  // Count Unique Data Types Extracted
+  // Count Unique Data Types
   // ===============================
   static getExtractionCount(session) {
     const memory = session.memory;
@@ -293,28 +364,22 @@ export class ReplyGenerator {
     if (memory.extracted.upi.size > 0) count++;
     if (memory.extracted.email.size > 0) count++;
     if (memory.extracted.link.size > 0) count++;
-    if (memory.extracted.employeeID.size > 0) count++;
     return count;
   }
 
   // ===============================
-  // Get Missing Data Types Based on Scam Type
+  // Get Missing Data Types
   // ===============================
   static getMissingDataTypes(session, scamType) {
     const memory = session.memory;
     const missing = [];
     
-    // Phone is always important
     if (memory.extracted.phone.size === 0) missing.push('phone');
-    
-    // Name is always good to have
     if (!memory.extracted.name) missing.push('name');
     
-    // Scam-specific data
     if (scamType === 'bank' && memory.extracted.bankAccount.size === 0) missing.push('account');
     if (scamType === 'upi' && memory.extracted.upi.size === 0) missing.push('upi');
     if (scamType === 'phishing' && memory.extracted.link.size === 0) missing.push('link');
-    if (scamType === 'job' && memory.extracted.employeeID.size === 0) missing.push('employeeID');
     if (memory.extracted.email.size === 0) missing.push('email');
     
     return missing;
@@ -346,8 +411,7 @@ export class ReplyGenerator {
            detected.hasUPI || detected.hasPhone || detected.hasThreat ||
            detected.hasUrgency || detected.hasLink || detected.hasBank ||
            detected.hasFakeOffer || detected.hasInvestment || detected.hasLottery ||
-           detected.hasEmployeeID || detected.hasEmail || detected.hasKYC ||
-           detected.hasJob || detected.hasLoan;
+           detected.hasEmail;
   }
 
   static isGreetingOnly(detected, message) {
@@ -357,16 +421,10 @@ export class ReplyGenerator {
     return isGreeting && !this.hasScamIndicators(detected);
   }
 
-  // ===============================
-  // Delay Function
-  // ===============================
   static delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // ===============================
-  // Get Unique Reply from REPLIES - NEVER REPEATS
-  // ===============================
   static getUniqueReply(key, session) {
     const replies = REPLIES[key];
     if (!replies || replies.length === 0) {
@@ -388,23 +446,14 @@ export class ReplyGenerator {
     return selectedReply;
   }
 
-  // ===============================
-  // Get Reply with Parameter from REPLIES
-  // ===============================
   static getUniqueReplyWithParam(key, placeholder, value, session) {
     const reply = this.getUniqueReply(key, session);
     return reply.replace(new RegExp(placeholder.replace('{', '\\{').replace('}', '\\}'), 'g'), value);
   }
 
-  // ===============================
-  // Contextual Fallback
-  // ===============================
   static getContextualFallback(session) {
     const fallbacks = REPLIES.fallback_scared || [
-      "Mujhe samajh nahi aaya. Aap hi batao kya karna hai?",
-      "Main confuse hoon. Thoda explain karo.",
-      "Kya karna hai? Batao na.",
-      "Main aapke bharose hoon. Jo kaho karunga."
+      "Mujhe samajh nahi aaya. Aap hi batao kya karna hai?"
     ];
     
     const available = fallbacks.filter(f => !session.memory.usedReplies.has(f));
