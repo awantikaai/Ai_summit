@@ -4,9 +4,9 @@ import axios from "axios";
 export class CallbackService {
   static async sendFinalResult(sessionId, session) {
     
-    // ============ ADD 10 SECOND DELAY BEFORE CALLBACK ============
+    // ============ 10 SECOND DELAY BEFORE CALLBACK ============
     console.log(`⏱️ Waiting 10 seconds before sending callback...`);
-    await this.delay(10000); // 10 seconds delay
+    await this.delay(10000);
     console.log(`✅ Delay complete - sending callback now`);
 
     const intelligence = session.intelligence;
@@ -16,43 +16,42 @@ export class CallbackService {
     const endTime = Date.now();
     const engagementDurationSeconds = Math.round((endTime - startTime) / 1000);
     
-    // Format phone numbers with +91- prefix for consistency
-    const formattedPhones = (intelligence.phoneNumbers || []).map(phone => {
+    // DEDUPLICATE all arrays using Set
+    const uniquePhoneNumbers = [...new Set(intelligence.phoneNumbers || [])];
+    const uniqueBankAccounts = [...new Set(intelligence.bankAccounts || [])];
+    const uniqueUpiIds = [...new Set(intelligence.upiIds || [])];
+    const uniquePhishingLinks = [...new Set(intelligence.phishingLinks || [])];
+    const uniqueEmailAddresses = [...new Set(intelligence.emailAddresses || [])];
+    const uniqueEmployeeIDs = [...new Set(intelligence.employeeIDs || [])];
+    
+    // Format phone numbers with +91- prefix
+    const formattedPhones = uniquePhoneNumbers.map(phone => {
       if (phone.length === 10 && !phone.startsWith('+91')) {
         return `+91-${phone}`;
       }
       return phone;
     });
     
-    // ============ BUILD EXTRACTED INTELLIGENCE - ONLY INCLUDE WHAT WAS ACTUALLY EXTRACTED ============
+    // ============ BUILD EXTRACTED INTELLIGENCE - ONLY UNIQUE VALUES ============
     const extractedIntelligence = {};
     
-    if (intelligence.phoneNumbers?.length > 0) {
+    if (formattedPhones.length > 0) {
       extractedIntelligence.phoneNumbers = formattedPhones;
     }
-    if (intelligence.bankAccounts?.length > 0) {
-      extractedIntelligence.bankAccounts = intelligence.bankAccounts;
+    if (uniqueBankAccounts.length > 0) {
+      extractedIntelligence.bankAccounts = uniqueBankAccounts;
     }
-    if (intelligence.upiIds?.length > 0) {
-      extractedIntelligence.upiIds = intelligence.upiIds;
+    if (uniqueUpiIds.length > 0) {
+      extractedIntelligence.upiIds = uniqueUpiIds;
     }
-    if (intelligence.phishingLinks?.length > 0) {
-      extractedIntelligence.phishingLinks = intelligence.phishingLinks;
+    if (uniquePhishingLinks.length > 0) {
+      extractedIntelligence.phishingLinks = uniquePhishingLinks;
     }
-    if (intelligence.emailAddresses?.length > 0) {
-      extractedIntelligence.emailAddresses = intelligence.emailAddresses;
+    if (uniqueEmailAddresses.length > 0) {
+      extractedIntelligence.emailAddresses = uniqueEmailAddresses;
     }
-    if (intelligence.employeeIDs?.length > 0) {
-      extractedIntelligence.employeeIDs = intelligence.employeeIDs;
-    }
-    if (intelligence.cryptoWallets?.length > 0) {
-      extractedIntelligence.cryptoWallets = intelligence.cryptoWallets;
-    }
-    if (intelligence.companyNames?.length > 0) {
-      extractedIntelligence.companyNames = intelligence.companyNames;
-    }
-    if (intelligence.amounts?.length > 0) {
-      extractedIntelligence.amounts = intelligence.amounts;
+    if (uniqueEmployeeIDs.length > 0) {
+      extractedIntelligence.employeeIDs = uniqueEmployeeIDs;
     }
     
     const payload = {
@@ -64,10 +63,17 @@ export class CallbackService {
         engagementDurationSeconds: engagementDurationSeconds
       },
       extractedIntelligence: extractedIntelligence,
-      agentNotes: this.generateAgentNotes(session, intelligence)
+      agentNotes: this.generateAgentNotes(session, {
+        phoneCount: formattedPhones.length,
+        bankCount: uniqueBankAccounts.length,
+        upiCount: uniqueUpiIds.length,
+        linkCount: uniquePhishingLinks.length,
+        emailCount: uniqueEmailAddresses.length,
+        empCount: uniqueEmployeeIDs.length
+      })
     };
     
-    console.log('\n📤 CALLBACK PAYLOAD (Only extracted data):');
+    console.log('\n📤 CALLBACK PAYLOAD (Deduplicated):');
     console.log(JSON.stringify(payload, null, 2));
     
     try {
@@ -87,37 +93,33 @@ export class CallbackService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  static generateAgentNotes(session, intelligence) {
+  static generateAgentNotes(session, counts) {
     const tactics = [];
     const extractedItems = [];
     
-    if (intelligence.phoneNumbers?.length > 0) {
+    if (counts.phoneCount > 0) {
       tactics.push('phone number harvesting');
-      extractedItems.push(`${intelligence.phoneNumbers.length} phone numbers`);
+      extractedItems.push(`${counts.phoneCount} phone numbers`);
     }
-    if (intelligence.bankAccounts?.length > 0) {
+    if (counts.bankCount > 0) {
       tactics.push('bank account harvesting');
-      extractedItems.push(`${intelligence.bankAccounts.length} bank accounts`);
+      extractedItems.push(`${counts.bankCount} bank accounts`);
     }
-    if (intelligence.upiIds?.length > 0) {
+    if (counts.upiCount > 0) {
       tactics.push('UPI ID harvesting');
-      extractedItems.push(`${intelligence.upiIds.length} UPI IDs`);
+      extractedItems.push(`${counts.upiCount} UPI IDs`);
     }
-    if (intelligence.phishingLinks?.length > 0) {
+    if (counts.linkCount > 0) {
       tactics.push('phishing link sharing');
-      extractedItems.push(`${intelligence.phishingLinks.length} phishing links`);
+      extractedItems.push(`${counts.linkCount} phishing links`);
     }
-    if (intelligence.emailAddresses?.length > 0) {
+    if (counts.emailCount > 0) {
       tactics.push('email address harvesting');
-      extractedItems.push(`${intelligence.emailAddresses.length} email addresses`);
+      extractedItems.push(`${counts.emailCount} email addresses`);
     }
-    if (intelligence.employeeIDs?.length > 0) {
+    if (counts.empCount > 0) {
       tactics.push('employee ID sharing');
-      extractedItems.push(`${intelligence.employeeIDs.length} employee IDs`);
-    }
-    if (intelligence.cryptoWallets?.length > 0) {
-      tactics.push('crypto wallet sharing');
-      extractedItems.push(`${intelligence.cryptoWallets.length} crypto wallets`);
+      extractedItems.push(`${counts.empCount} employee IDs`);
     }
     
     if (session.threatCount > 2) tactics.push('multiple threats');
@@ -136,54 +138,47 @@ export class CallbackService {
     return notes;
   }
   
-  // ============ SMART EXIT LOGIC - Exit when we have enough data ============
+  // ============ SMART EXIT LOGIC ============
   static shouldEndSession(session) {
     const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
     const turnCount = userMessages.length;
     
-    // Minimum 5 turns required for points
     if (turnCount < 5) return false;
     
     const intel = session.intelligence;
-    const memory = session.memory;
     
-    // Count what we've extracted
-    const extractedTypes = [];
-    if (intel.phoneNumbers?.length > 0) extractedTypes.push('phone');
-    if (intel.bankAccounts?.length > 0) extractedTypes.push('bank');
-    if (intel.upiIds?.length > 0) extractedTypes.push('upi');
-    if (intel.phishingLinks?.length > 0) extractedTypes.push('link');
-    if (intel.emailAddresses?.length > 0) extractedTypes.push('email');
-    if (intel.employeeIDs?.length > 0) extractedTypes.push('employee');
-    if (intel.cryptoWallets?.length > 0) extractedTypes.push('crypto');
+    // Get unique counts
+    const phoneCount = [...new Set(intel.phoneNumbers || [])].length;
+    const bankCount = [...new Set(intel.bankAccounts || [])].length;
+    const upiCount = [...new Set(intel.upiIds || [])].length;
+    const linkCount = [...new Set(intel.phishingLinks || [])].length;
+    const emailCount = [...new Set(intel.emailAddresses || [])].length;
     
-    const extractionCount = extractedTypes.length;
+    // Count unique data types (not total items)
+    const extractionTypes = [];
+    if (phoneCount > 0) extractionTypes.push('phone');
+    if (bankCount > 0) extractionTypes.push('bank');
+    if (upiCount > 0) extractionTypes.push('upi');
+    if (linkCount > 0) extractionTypes.push('link');
+    if (emailCount > 0) extractionTypes.push('email');
     
-    // ============ SMART EXIT CONDITIONS ============
+    const typeCount = extractionTypes.length;
     
-    // EXIT CONDITION 1: Got 2+ types of data AND at least 5 turns
-    if (extractionCount >= 2 && turnCount >= 5) {
-      console.log(`✅ EXIT: Collected ${extractionCount} data types in ${turnCount} turns`);
+    // EXIT: Got 2+ unique data types AND at least 5 turns
+    if (typeCount >= 2 && turnCount >= 5) {
+      console.log(`✅ EXIT: Collected ${typeCount} unique data types in ${turnCount} turns`);
       return true;
     }
     
-    // EXIT CONDITION 2: Got 1 important data type + threat + 6+ turns
-    if (extractionCount >= 1 && (memory?.threatCount >= 2 || session.threatCount >= 2) && turnCount >= 6) {
-      console.log(`✅ EXIT: Got data + threats in ${turnCount} turns`);
+    // EXIT: Got phone + (bank/UPI) AND 5+ turns
+    if (phoneCount > 0 && (bankCount > 0 || upiCount > 0) && turnCount >= 5) {
+      console.log(`✅ EXIT: Got phone + other data`);
       return true;
     }
     
-    // EXIT CONDITION 3: Maximum turns reached (10)
+    // EXIT: Max turns
     if (turnCount >= 10) {
-      console.log(`✅ EXIT: Max turns (10) reached`);
-      return true;
-    }
-    
-    // EXIT CONDITION 4: Got phone AND (bank/UPI/email) AND 5+ turns
-    if (intel.phoneNumbers?.length > 0 && 
-        (intel.bankAccounts?.length > 0 || intel.upiIds?.length > 0 || intel.emailAddresses?.length > 0) &&
-        turnCount >= 5) {
-      console.log(`✅ EXIT: Got phone + other data in ${turnCount} turns`);
+      console.log(`✅ EXIT: Max turns reached`);
       return true;
     }
     
