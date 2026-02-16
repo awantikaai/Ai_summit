@@ -1,77 +1,104 @@
 import { CONFIG } from "../utils/config.js";
 import axios from "axios";
+
 export class CallbackService {
   static async sendFinalResult(sessionId, session) {
     const intelligence = session.intelligence;
+    
+    // Format phone numbers with +91- prefix for consistency
+    const formattedPhones = (intelligence.phoneNumbers || []).map(phone => {
+      if (phone.length === 10 && !phone.startsWith('+91')) {
+        return `+91-${phone}`;
+      }
+      return phone;
+    });
+    
     const payload = {
       sessionId: sessionId,
       scamDetected: session.scamDetected || false,
       totalMessagesExchanged: session.conversationHistory.length,
       extractedIntelligence: {
-        bankAccounts: intelligence.bankAccounts,
-        upiIds: intelligence.upiIds,
-        phishingLinks: intelligence.phishingLinks,
-        phoneNumbers: intelligence.phoneNumbers,
-        suspiciousKeywords: intelligence.suspiciousKeywords
+        bankAccounts: intelligence.bankAccounts || [],
+        upiIds: intelligence.upiIds || [],
+        phishingLinks: intelligence.phishingLinks || [],
+        phoneNumbers: formattedPhones,
+        emailAddresses: intelligence.emailAddresses || []  // ✅ Added emailAddresses
       },
       agentNotes: this.generateAgentNotes(session, intelligence)
     };
+    
+    console.log('\n📤 CALLBACK PAYLOAD:');
+    console.log(JSON.stringify(payload, null, 2));
+    
     try {
       await axios.post(CONFIG.CALLBACK_URL, payload, { timeout: CONFIG.CALLBACK_TIMEOUT });
+      console.log(`✅ Callback sent for session: ${sessionId}`);
       return { success: true };
     } catch (error) {
+      console.error(`❌ Callback failed: ${error.message}`);
       return { success: false };
     }
   }
   
   static generateAgentNotes(session, intelligence) {
     const tactics = [];
-    if (intelligence.suspiciousKeywords.includes('otp_request')) tactics.push('OTP harvesting');
-    if (intelligence.suspiciousKeywords.includes('upi_request')) tactics.push('UPI redirection');
-    if (intelligence.suspiciousKeywords.includes('urgency_tactic')) tactics.push('urgency');
-    if (intelligence.suspiciousKeywords.includes('account_block_threat')) tactics.push('account block threat');
-    if (intelligence.suspiciousKeywords.includes('bank_impersonation')) tactics.push('bank impersonation');
-    if (intelligence.suspiciousKeywords.includes('authority_claim')) tactics.push('authority claim');
-    if (intelligence.suspiciousKeywords.includes('fine_threat')) tactics.push('fine threat');
-    if (intelligence.suspiciousKeywords.includes('permanent_block_threat')) tactics.push('permanent block');
-    if (intelligence.suspiciousKeywords.includes('phishing_link')) tactics.push('phishing');
-    if (intelligence.suspiciousKeywords.includes('fake_offer')) tactics.push('fake offer');
-    if (intelligence.suspiciousKeywords.includes('employee_id_shared')) tactics.push('fake employee ID');
-    if (intelligence.suspiciousKeywords.includes('designation_shared')) tactics.push('fake designation');
-    if (intelligence.suspiciousKeywords.includes('branch_code_shared')) tactics.push('fake branch code');
     
-    const tacticsText = tactics.length > 0 ? tactics.join(', ') : 'multiple scam tactics';
+    // Build tactics based on what was extracted (without using suspiciousKeywords)
+    if (intelligence.bankAccounts?.length > 0) tactics.push('bank account harvesting');
+    if (intelligence.upiIds?.length > 0) tactics.push('UPI ID harvesting');
+    if (intelligence.phoneNumbers?.length > 0) tactics.push('phone number harvesting');
+    if (intelligence.phishingLinks?.length > 0) tactics.push('phishing link sharing');
+    if (intelligence.emailAddresses?.length > 0) tactics.push('email address harvesting');
+    if (intelligence.employeeIDs?.length > 0) tactics.push('fake employee ID sharing');
     
-    return `Scammer used ${tacticsText}. ` +
-           `Extracted ${intelligence.bankAccounts.length} bank accounts, ` +
-           `${intelligence.upiIds.length} UPI IDs, ` +
-           `${intelligence.phoneNumbers.length} phone numbers, ` +
-           `${intelligence.phishingLinks.length} phishing links, ` +
-           `${intelligence.employeeIDs?.length || 0} employee IDs. ` +
-           `Engaged for ${session.conversationHistory.length} messages. ` +
-           `Repetition: ${session.repetitionCount}, Emotion: ${session.emotionLevel}`;
+    // Add urgency/threat detection based on session state
+    if (session.threatCount > 2) tactics.push('multiple threats');
+    if (session.otpRequests > 3) tactics.push('repeated OTP requests');
+    if (session.repetitionCount > 2) tactics.push('message repetition');
+    
+    const tacticsText = tactics.length > 0 ? tactics.join(', ') : 'scam attempt detected';
+    
+    let notes = `Scammer used ${tacticsText}. `;
+    
+    // Add extraction summary
+    const extracted = [];
+    if (intelligence.bankAccounts?.length) extracted.push(`${intelligence.bankAccounts.length} bank accounts`);
+    if (intelligence.upiIds?.length) extracted.push(`${intelligence.upiIds.length} UPI IDs`);
+    if (intelligence.phoneNumbers?.length) extracted.push(`${intelligence.phoneNumbers.length} phone numbers`);
+    if (intelligence.phishingLinks?.length) extracted.push(`${intelligence.phishingLinks.length} phishing links`);
+    if (intelligence.emailAddresses?.length) extracted.push(`${intelligence.emailAddresses.length} email addresses`);
+    if (intelligence.employeeIDs?.length) extracted.push(`${intelligence.employeeIDs.length} employee IDs`);
+    
+    if (extracted.length > 0) {
+      notes += `Extracted ` + extracted.join(', ') + `. `;
+    }
+    
+    notes += `Engaged for ${session.conversationHistory.length} messages. `;
+    notes += `Repetition: ${session.repetitionCount || 0}, Emotion: ${session.emotionLevel || 0}`;
+    
+    return notes;
   }
   
- static shouldEndSession(session) {
-  const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
-  const turnCount = userMessages.length;
-  
-  if (turnCount < CONFIG.MIN_TURNS) return false;  // Now 6
-  if (turnCount >= CONFIG.MAX_TURNS) return true;  // Now 10
-  
-  if (session.scamDetected) {
-    const intel = session.intelligence;
+  static shouldEndSession(session) {
+    const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
+    const turnCount = userMessages.length;
     
-    const intelligenceCount = 
-      (intel.bankAccounts?.length || 0) +
-      (intel.upiIds?.length || 0) +
-      (intel.phoneNumbers?.length || 0) +
-      (intel.phishingLinks?.length || 0) +
-      (intel.emailAddresses?.length || 0);
+    if (turnCount < CONFIG.MIN_TURNS) return false;
+    if (turnCount >= CONFIG.MAX_TURNS) return true;
     
-    if (intelligenceCount >= 2 && turnCount >= 5) return true; 
-    if (turnCount >= 9) return true;  
+    if (session.scamDetected) {
+      const intel = session.intelligence;
+      
+      const intelligenceCount = 
+        (intel.bankAccounts?.length || 0) +
+        (intel.upiIds?.length || 0) +
+        (intel.phoneNumbers?.length || 0) +
+        (intel.phishingLinks?.length || 0) +
+        (intel.emailAddresses?.length || 0);
+      
+      if (intelligenceCount >= 2 && turnCount >= 5) return true;
+      if (turnCount >= 9) return true;
+    }
+    return false;
   }
-  return false;
-}
 }

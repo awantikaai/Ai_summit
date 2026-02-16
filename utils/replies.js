@@ -353,5 +353,105 @@ export const REPLIES = {
     "Kya exact problem hai? Main dar gaya hoon.",
     "Mera account safe hai na? Aap batao.",
     "Main aapke bharose hoon. Jo kaho karunga."
-  ]
+  ],
+  // ============ EMAIL-RELATED RESPONSES ============
+
+// When scammer asks to send data to email
+email_send_request: [
+  "Email kahan bhejna hai? Aapka email ID kya hai?",
+  "Kaunsa email ID pe bhejna hai? Main note kar leta hoon.",
+  "Email ID batao, main details forward kar dunga.",
+  "Kya aap apna email ID de sakte ho? Main wahan bhej dunga.",
+  "Email address do, main abhi bhejta hoon."
+],
+
+// When scammer provides email address
+email_provided: [
+  "Yeh {email} aapka email hai? Main check kar leta hoon.",
+  "{email} – yeh sahi hai? Ispe bhej du details?",
+  "Is email {email} pe aap regular check karte ho?",
+  "Email {email} confirm hai na? Main bhej raha hoon.",
+  "Yeh {email} official email hai ya personal?"
+],
+
+// When scammer asks for victim's email
+email_ask_victim: [
+  "Mera email {email} hai. Aapko kyun chahiye?",
+  "Mera email {email} hai. Ispe kuch bhejna hai?",
+  "Haan {email} mera email hai. Kya bhejna hai aapko?",
+  "Maine apna email {email} diya tha registration time pe.",
+  "Email {email} pe bhej do, main check kar leta hoon."
+],
+
+// When scammer sends suspicious email (phishing)
+email_suspicious: [
+  "Yeh email address thoda ajeeb lag raha hai. Official hai kya?",
+  "{email} – yeh domain sahi hai? @gmail.com nahi hai?",
+  "Company ka official email @sbi.co.in hota hai. Yeh {email} kyun hai?",
+  "Yeh email scam lag raha hai. Official domain nahi hai.",
+  "Mujhe lagta hai yeh fake email hai. Confirm karo."
+],
+
+// When scammer asks to check email
+email_check_request: [
+  "Email check kar raha hoon. Kya bheja tha aapne?",
+  "Main email dekhta hoon. Subject line kya tha?",
+  "Email aaya hai? Main abhi check kar raha hoon.",
+  "Konsa email? Main spam folder bhi check kar leta hoon.",
+  "Email ka screenshot bhej sakte ho? Main match kar leta hoon."
+],
+
+// When scammer asks for email password/credentials
+email_password_request: [
+  "Email ka password kyun chahiye? Yeh toh confidential hai.",
+  "Password nahi de sakta. Email bhejna hai toh bhejo.",
+  "Email password share karna safe nahi hai.",
+  "Bina password ke bhi email aa sakta hai. Dobara bhejo.",
+  "Password nahi dunga. Main email check kar leta hoon."
+],
+
+// When scammer sends phishing link in email context
+email_link: [
+  "Email mein link bheja hai? Kaunsa link hai?",
+  "Link pe click karun? Safe hai kya?",
+  "Yeh link official website jaisa nahi lag raha.",
+  "Link kholne se pehle confirm karo ki safe hai.",
+  "Main link pe tab tak click nahi karunga jab tak verify na kar lun."
+],
+
+// When scammer asks for email OTP
+email_otp_request: [
+  "Email pe OTP aaya hai? Main check kar raha hoon.",
+  "OTP email mein bheja hai? Kaunsa email ID pe?",
+  "Email OTP aaya, par main confident nahi hoon share karne se.",
+  "OTP email mein aaya. Ab main kya karun?",
+  "Email OTP share karun? Safe hai na?"
+],
+
+// When scammer claims email is from bank
+email_bank_claim: [
+  "Bank ka email @sbi.co.in se aata hai. Yeh {email} woh nahi hai.",
+  "SBI kabhi personal email se nahi bhejta. Yeh fake hai.",
+  "Bank ke official email domain alag hota hai. Yeh nahi hai.",
+  "Main SBI ka email pehle bhi dekha hai. Yeh match nahi kar raha.",
+  "Yeh email bank ka nahi lag raha. Confirm karo."
+],
+
+// General email confusion
+email_confused: [
+  "Email ki baat kar rahe ho? Kaunsa email?",
+  "Mujhe koi email nahi aaya. Dobara bhejo.",
+  "Email address kya hai? Main note kar leta hoon.",
+  "Email ke through karna hai? Thik hai, batao kya karna hai.",
+  "Main email dekh leta hoon. Thoda wait karo."
+],
+greeting_response: [
+  "Hello, kaun bol raha hai?",
+  "Haan bolo, kaun ho aap?",
+  "Namaste, kaise aapko number mila mera?",
+  "Hi, aap kaunse company se ho?",
+  "Hello, kya kaam hai?",
+  "Haan bhai, bolo kya baat hai?",
+  "Kaun ho aap? Pehle apna parichay do."
+]
 };

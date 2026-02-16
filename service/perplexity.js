@@ -2,27 +2,35 @@ import axios from "axios";
 
 const PERPLEXITY_REPLY_CATEGORIES = {
   confusion: [
-    "Mujhe samajh nahi aaya, thoda aur batao.",
-    "Aap kaunsa bank bol rahe ho pehle yeh batao.",
-    "Main thoda confuse hoon, kya exact problem hai?",
-    "Yeh kaunsa department hai? Pehli baar sun raha hoon.",
-    "Kya aap bank se hi ho? Number toh official nahi lag raha."
+    "Mujhe samajh nahi aaya. Aap kya keh rahe ho?",
+    "Main thoda confuse hoon. Thoda explain karo.",
+    "Yeh sab kya hai? Main samajh nahi pa raha.",
+    "Kya aap mujhe thoda detail mein bata sakte ho?",
+    "Mujhe kuch samajh nahi aaya. Aap kaun ho?"
   ],
 
   curiosity: [
-    "Aapka number kaise mila mujhe?",
-    "Yeh conversation thodi unusual lag rahi hai.",
-    "Aapka naam aur designation kya hai?",
-    "Kya main aapke manager se baat kar sakta hoon?",
-    "Aap kis branch se call kar rahe ho?"
+    "Aapka naam kya hai? Kahan se bol rahe ho?",
+    "Yeh kaunsa company hai? Pehli baar suna.",
+    "Aapko mera number kahan se mila?",
+    "Main interested hoon. Aage kya karna hai?",
+    "Yeh offer sach mein hai? Mujhe batao."
   ],
 
-  doubt: [
-    "Mujhe thoda doubt ho raha hai abhi.",
-    "Yeh process normal nahi lag raha.",
-    "Bank wale usually aise verify nahi karte.",
-    "Main ismein confident nahi hoon.",
-    "Kya iska koi official circular hai?"
+  interest: [
+    "Batao kya offer hai? Mujhe suno.",
+    "Main sun raha hoon. Aage batao.",
+    "Kya offer hai? Mujhe details chahiye.",
+    "Main interested hoon. Aap batao.",
+    "Offer mein kya milega? Batao na."
+  ],
+
+  skepticism: [
+    "Yeh sahi lag raha hai? Mujhe doubt ho raha.",
+    "Aap sahi ho na? Main verify karna chahta hoon.",
+    "Koi official proof hai aapke paas?",
+    "Main pehle confirm kar leta hoon.",
+    "Yeh process thoda ajeeb lag raha hai."
   ],
 
   clarification: [
@@ -37,12 +45,9 @@ const PERPLEXITY_REPLY_CATEGORIES = {
 export class PerplexityService {
 
   static async selectCategory(message, conversationHistory, config) {
-
-    if (!config?.USE_PERPLEXITY) return "confusion";
+    if (!config?.USE_PERPLEXITY) return "curiosity";
 
     try {
-
-      // Reduce noise — only last 2 messages
       const recentContext = conversationHistory
         .slice(-2)
         .map(m => `${m.sender}: ${m.text}`)
@@ -51,34 +56,17 @@ export class PerplexityService {
       const response = await axios.post(
         config.PERPLEXITY_URL,
         {
-          model: "llama-3.1-sonar-small-128k-online",
+          model: "sonar-pro",
           messages: [
             {
               role: "system",
-              content:
-                `Classify the scammer message into ONE category.
-
-Valid categories:
-confusion
-curiosity
-doubt
-clarification
-
-Rules:
-- Return ONLY the category name.
-- No punctuation.
-- No explanation.
-- If unsure, return confusion.`
+              content: `Classify the user message into ONE category.
+Valid categories: confusion, curiosity, interest, skepticism, clarification
+Rules: Return ONLY the category name. No punctuation. No explanation. If unsure, return curiosity.`
             },
             {
               role: "user",
-              content:
-                `Scammer message: "${message}"
-
-Recent conversation:
-${recentContext}
-
-Category:`
+              content: `Message: "${message}"\n\nRecent conversation:\n${recentContext}\n\nCategory:`
             }
           ],
           temperature: 0.2,
@@ -94,36 +82,22 @@ Category:`
       );
 
       let category = response?.data?.choices?.[0]?.message?.content || "";
-
-      category = category
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z]/g, "");
+      category = category.toLowerCase().trim().replace(/[^a-z]/g, "");
 
       if (!PERPLEXITY_REPLY_CATEGORIES[category]) {
-        return "confusion";
+        return "curiosity";
       }
-
       return category;
 
     } catch (error) {
-      return "confusion";
+      console.log('Perplexity error:', error.message);
+      return "curiosity";
     }
   }
 
   static getReply(category, session) {
-
-    const replies =
-      PERPLEXITY_REPLY_CATEGORIES[category] ||
-      PERPLEXITY_REPLY_CATEGORIES.confusion;
-
-    const index =
-      (session.turnCount +
-       session.repetitionCount +
-       session.otpRequests +
-       session.threatCount) % replies.length;
-
+    const replies = PERPLEXITY_REPLY_CATEGORIES[category] || PERPLEXITY_REPLY_CATEGORIES.curiosity;
+    const index = (session.turnCount + session.repetitionCount + (session.otpRequests || 0) + (session.threatCount || 0)) % replies.length;
     return replies[index];
   }
-
 }
