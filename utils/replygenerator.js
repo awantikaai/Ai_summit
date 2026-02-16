@@ -5,413 +5,506 @@ import { CONFIG } from "./config.js";
 export class ReplyGenerator {
 
   static async generateReply(detected, session, messageText, conversationHistory) {
-
+        await this.delay(10000); // 60,000 milliseconds = 60 seconds
     // Initialize memory tracking if not exists
     if (!session.memory) {
       session.memory = {
+        // What we've asked scammer
         askedName: false,
         askedPhone: false,
-        askedCallBack: false,
-        askedOTP: false,
-        askedTransaction: false,
-        askedAccount: false,
-        askedUPI: false,
+        askedEmail: false,
         askedEmployeeID: false,
         askedBranchCode: false,
-        askedOfficialEmail: false,
-        questionedOfficial: false,
+        askedIFSC: false,
+        askedAddress: false,
+        askedReferenceID: false,
+        askedUPI: false,
+        askedAccount: false,
+        askedProof: false,
         
+        // What scammer has given us
         extractedInfo: {
           scammerName: null,
           scammerPhone: null,
+          scammerEmail: null,
           scammerID: null,
-          accountNumber: null,
-          upiId: null,
-          bankName: null,
-          email: null
+          scammerBranch: null,
+          scammerIFSC: null,
+          scammerAddress: null,
+          scammerUPI: null,
+          scammerAccount: null,
+          scammerReference: null
         },
         
-        currentPhase: 1,
-        phaseCompleted: {
-          phase1: false, phase2: false, phase3: false, phase4: false, phase5: false
-        },
-        
+        // Trap state
+        currentPhase: 1, // 1:Curious, 2:Interested, 3:Confused, 4:Scared, 5:Panicking
         threatCount: 0,
         otpRequests: 0,
         lastTopics: [],
         
-        authorityChallenged: false,
-        cyberMentioned: false,
-        branchMentioned: false,
-        tollfreeMentioned: false,
-        askedVictimPhone: false,
-        phoneMentionCount: 0,
+        // Track used replies to avoid repetition
+        usedReplies: new Set(),
         
-        isFirstMessage: session.turnCount === 0,
-        usedPerplexity: false
+        // Track scam type for context
+        detectedScamType: null,
+        
+        // Trap flags
+        fellForTrap: false,
+        providedInfo: false
       };
     }
 
+    // ============ DETECT SCAM TYPE ============
+    const scamType = this.detectScamType(detected);
+    if (scamType && !session.memory.detectedScamType) {
+      session.memory.detectedScamType = scamType;
+      console.log(`🎯 Scam type detected: ${scamType}`);
+    }
+
     // ============ CHECK FOR AMBIGUOUS MESSAGES ============
-    // If no clear scam indicators and early turn, use Perplexity
     const hasClearScamIndicators = this.hasScamIndicators(detected);
     const isAmbiguous = !hasClearScamIndicators && session.turnCount < CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX;
     
     if (isAmbiguous && CONFIG.USE_PERPLEXITY) {
       console.log('🤔 Ambiguous message detected - using Perplexity');
-      session.memory.usedPerplexity = true;
       const category = await PerplexityService.selectCategory(messageText, conversationHistory, CONFIG);
       const reply = PerplexityService.getReply(category, session);
       if (reply) {
-        console.log(`🎯 Perplexity category: ${category}`);
+        session.memory.usedReplies.add(reply);
         return reply;
       }
     }
 
-    // ============ SPECIAL HANDLING FOR GREETINGS ============
+    // ============ GREETING HANDLING ============
     const isGreeting = this.isGreetingOnly(detected, session.lastScammerMessage);
-    
     if (isGreeting && session.turnCount === 0) {
-      console.log('👋 Greeting detected - responding normally');
-      return this.getReply("greeting_response", session);
+      const reply = this.getUniqueReply("greeting_response", session);
+      session.memory.usedReplies.add(reply);
+      return reply;
     }
 
-    // Update counters
+    // Update counters and extract info
     this.updateCountersAndExtract(detected, session);
-    this.determineCurrentPhase(session);
 
-    // PHASE 6: EXIT (Turns 9-10)
-    if (session.memory.currentPhase >= 6 || session.turnCount >= 9) {
-      session.memory.currentPhase = 6;
-      return this.getPhase6ExitResponse(session);
+    // ============ PHASE-BASED RESPONSES ============
+    
+    // PHASE 1: CURIOUS VICTIM (Turns 1-2)
+    if (session.turnCount <= 2) {
+      const reply = this.getPhase1CuriousResponse(detected, session);
+      session.memory.usedReplies.add(reply);
+      return reply;
     }
     
-    // PHASE 5: ESCALATION (Turns 7-8)
-    if (session.memory.currentPhase >= 5 || 
-        (session.memory.threatCount >= 3 && session.memory.otpRequests >= 2) ||
-        session.turnCount >= 7) {
-      session.memory.currentPhase = 5;
-      return this.getPhase5EscalationResponse(detected, session);
+    // PHASE 2: INTERESTED VICTIM (Turns 3-4)
+    if (session.turnCount <= 4) {
+      const reply = this.getPhase2InterestedResponse(detected, session);
+      session.memory.usedReplies.add(reply);
+      return reply;
     }
     
-    // PHASE 4: AUTHORITY CHALLENGE (Turns 5-6)
-    if (session.memory.currentPhase >= 4 ||
-        (session.memory.extractedInfo.accountNumber && session.memory.extractedInfo.scammerPhone) ||
-        session.memory.otpRequests >= 2 ||
-        session.turnCount >= 5) {
-      session.memory.currentPhase = 4;
-      return this.getPhase4AuthorityResponse(detected, session);
+    // PHASE 3: CONFUSED VICTIM (Turns 5-6)
+    if (session.turnCount <= 6) {
+      const reply = this.getPhase3ConfusedResponse(detected, session);
+      session.memory.usedReplies.add(reply);
+      return reply;
     }
     
-    // PHASE 3: INTELLIGENCE EXTRACTION (Turns 3-4)
-    if (session.memory.currentPhase >= 3 || session.turnCount >= 3) {
-      session.memory.currentPhase = 3;
-      return this.getPhase3ExtractionResponse(detected, session);
+    // PHASE 4: SCARED VICTIM (Turns 7-8)
+    if (session.turnCount <= 8) {
+      const reply = this.getPhase4ScaredResponse(detected, session);
+      session.memory.usedReplies.add(reply);
+      return reply;
     }
     
-    // PHASE 2: CURIOSITY (Turn 2)
-    if (session.memory.currentPhase >= 2 || session.turnCount >= 2) {
-      session.memory.currentPhase = 2;
-      return this.getPhase2CuriosityResponse(detected, session);
-    }
-    
-    // PHASE 1: CONFUSION (Turn 1) - Only if not a greeting
-    return this.getPhase1ConfusionResponse(session);
+    // PHASE 5: PANICKING VICTIM (Turns 9-10)
+    const reply = this.getPhase5PanickingResponse(detected, session);
+    session.memory.usedReplies.add(reply);
+    return reply;
   }
 
   // ===============================
-  // Check if message has scam indicators
+  // Detect Scam Type
+  // ===============================
+  static detectScamType(detected) {
+    if (detected.hasBank || detected.hasAccount || detected.hasOTP) return 'bank';
+    if (detected.hasUPI || detected.hasPaymentRequest) return 'upi';
+    if (detected.hasLink || detected.hasSuspiciousDomain) return 'link';
+    if (detected.hasLottery || detected.hasFakeOffer) return 'lottery';
+    if (detected.hasInvestment) return 'investment';
+    if (detected.hasJob) return 'job';
+    if (detected.hasLoan) return 'loan';
+    if (detected.hasKYC) return 'kyc';
+    return null;
+  }
+
+  // ===============================
+  // PHASE 1: CURIOUS VICTIM
+  // ===============================
+  static getPhase1CuriousResponse(detected, session) {
+    const scamType = session.memory.detectedScamType;
+    
+    // Use scam-specific responses if available
+    if (scamType === 'bank') {
+      return this.getUniqueReply("victim_confused", session);
+    }
+    if (scamType === 'upi') {
+      return this.getUniqueReply("upi_initial", session);
+    }
+    if (scamType === 'link') {
+      return this.getUniqueReply("link_initial", session);
+    }
+    if (scamType === 'lottery') {
+      return this.getUniqueReply("lottery_initial", session);
+    }
+    if (scamType === 'investment') {
+      return this.getUniqueReply("investment_initial", session);
+    }
+    if (scamType === 'job') {
+      return this.getUniqueReply("job_initial", session);
+    }
+    if (scamType === 'loan') {
+      return this.getUniqueReply("loan_initial", session);
+    }
+    if (scamType === 'kyc') {
+      return this.getUniqueReply("kyc_initial", session);
+    }
+    
+    // Generic responses based on detected keywords
+    if (detected.hasFakeOffer || detected.hasLottery) {
+      return this.getUniqueReply("lottery_initial", session);
+    }
+    if (detected.hasBank || detected.hasAccount) {
+      return this.getUniqueReply("victim_confused", session);
+    }
+    if (detected.hasInvestment) {
+      return this.getUniqueReply("investment_initial", session);
+    }
+    if (detected.hasJob) {
+      return this.getUniqueReply("job_initial", session);
+    }
+    if (detected.hasLoan) {
+      return this.getUniqueReply("loan_initial", session);
+    }
+    
+    return this.getUniqueReply("victim_confused", session);
+  }
+
+  // ===============================
+  // PHASE 2: INTERESTED VICTIM - Ask for scammer's details
+  // ===============================
+  static getPhase2InterestedResponse(detected, session) {
+    const memory = session.memory;
+    
+    // PRIORITY 1: Ask for their name
+    if (!memory.askedName && !memory.extractedInfo.scammerName) {
+      memory.askedName = true;
+      return this.getUniqueReply("ask_scammer_name", session);
+    }
+    
+    // PRIORITY 2: Ask for their phone
+    if (!memory.askedPhone && !memory.extractedInfo.scammerPhone) {
+      memory.askedPhone = true;
+      return this.getUniqueReply("ask_scammer_phone", session);
+    }
+    
+    // PRIORITY 3: Ask for their email
+    if (!memory.askedEmail && !memory.extractedInfo.scammerEmail && detected.hasEmail) {
+      memory.askedEmail = true;
+      return this.getUniqueReply("email_send_request", session);
+    }
+    
+    // PRIORITY 4: Ask for employee ID (bank-related)
+    if ((detected.hasBank || memory.detectedScamType === 'bank') && !memory.askedEmployeeID) {
+      memory.askedEmployeeID = true;
+      return this.getUniqueReply("ask_employee_id", session);
+    }
+    
+    // PRIORITY 5: Ask for UPI ID (payment-related)
+    if ((detected.hasUPI || memory.detectedScamType === 'upi') && !memory.askedUPI) {
+      memory.askedUPI = true;
+      return this.getUniqueReply("upi_confirm", session);
+    }
+    
+    // PRIORITY 6: Ask for reference ID
+    if (!memory.askedReferenceID && (detected.hasReference || memory.threatCount > 1)) {
+      memory.askedReferenceID = true;
+      return this.getUniqueReply("ask_reference_id", session);
+    }
+    
+    return this.getUniqueReply("victim_asking", session);
+  }
+
+  // ===============================
+  // PHASE 3: CONFUSED VICTIM
+  // ===============================
+  static getPhase3ConfusedResponse(detected, session) {
+    const memory = session.memory;
+    const scamType = memory.detectedScamType;
+    
+    // Ask for branch details (bank)
+    if ((scamType === 'bank' || detected.hasBank) && !memory.askedBranchCode) {
+      memory.askedBranchCode = true;
+      return this.getUniqueReply("ask_branch_code", session);
+    }
+    
+    // Ask for IFSC
+    if ((scamType === 'bank' || detected.hasBank) && !memory.askedIFSC) {
+      memory.askedIFSC = true;
+      return this.getUniqueReply("ask_branch_code", session); // Using branch code for IFSC too
+    }
+    
+    // Ask for address
+    if (!memory.askedAddress) {
+      memory.askedAddress = true;
+      return this.getUniqueReply("ask_branch_code", session); // Using branch code for address too
+    }
+    
+    // Ask for proof
+    if (!memory.askedProof && memory.threatCount > 1) {
+      memory.askedProof = true;
+      return this.getUniqueReply("ask_proof", session);
+    }
+    
+    // Progressive OTP responses based on scam type
+    if (detected.hasOTP) {
+      return this.getProgressiveOTPResponse(detected, session);
+    }
+    
+    // Scam-specific confused responses
+    if (scamType === 'bank') {
+      return this.getUniqueReply("bank_otp_third", session);
+    }
+    if (scamType === 'upi') {
+      return this.getUniqueReply("upi_request_third", session);
+    }
+    if (scamType === 'link') {
+      return this.getUniqueReply("link_third", session);
+    }
+    if (scamType === 'lottery') {
+      return this.getUniqueReply("lottery_third", session);
+    }
+    if (scamType === 'investment') {
+      return this.getUniqueReply("investment_third", session);
+    }
+    if (scamType === 'job') {
+      return this.getUniqueReply("job_third", session);
+    }
+    if (scamType === 'loan') {
+      return this.getUniqueReply("loan_third", session);
+    }
+    
+    return this.getUniqueReply("victim_confused", session);
+  }
+
+  // ===============================
+  // PHASE 4: SCARED VICTIM
+  // ===============================
+  static getPhase4ScaredResponse(detected, session) {
+    const memory = session.memory;
+    
+    if (detected.hasThreat) {
+      return this.getUniqueReply("permanent_scared", session);
+    }
+    
+    if (detected.hasFine) {
+      return this.getUniqueReply("fine_worried", session);
+    }
+    
+    if (detected.hasPermanent) {
+      return this.getUniqueReply("permanent_scared", session);
+    }
+    
+    // Progressive OTP responses for scared phase
+    if (detected.hasOTP && memory.otpRequests >= 3) {
+      return this.getProgressiveOTPResponse(detected, session);
+    }
+    
+    return this.getUniqueReply("victim_scared", session);
+  }
+
+  // ===============================
+  // PHASE 5: PANICKING VICTIM
+  // ===============================
+  static getPhase5PanickingResponse(detected, session) {
+    const memory = session.memory;
+    
+    if (!memory.providedInfo) {
+      memory.providedInfo = true;
+      memory.fellForTrap = true;
+      return this.getUniqueReply("victim_desperate", session);
+    }
+    
+    // Final OTP responses
+    if (detected.hasOTP && memory.otpRequests >= 4) {
+      return this.getUniqueReply("otp_fifth", session);
+    }
+    
+    return this.getUniqueReply("victim_compliant", session);
+  }
+
+  // ===============================
+  // Progressive OTP Responses by Scam Type
+  // ===============================
+  static getProgressiveOTPResponse(detected, session) {
+    const memory = session.memory;
+    const scamType = memory.detectedScamType;
+    
+    // Update OTP counter
+    if (detected.hasOTP) {
+      memory.otpRequests++;
+    }
+    
+    // Return appropriate OTP level based on count and scam type
+    if (memory.otpRequests === 1) {
+      if (scamType === 'bank') return this.getUniqueReply("bank_otp_first", session);
+      if (scamType === 'upi') return this.getUniqueReply("upi_pin_request", session);
+      return this.getUniqueReply("otp_first", session);
+    }
+    else if (memory.otpRequests === 2) {
+      if (scamType === 'bank') return this.getUniqueReply("bank_otp_second", session);
+      return this.getUniqueReply("otp_second", session);
+    }
+    else if (memory.otpRequests === 3) {
+      if (scamType === 'bank') return this.getUniqueReply("bank_otp_third", session);
+      if (scamType === 'upi') return this.getUniqueReply("upi_request_third", session);
+      return this.getUniqueReply("otp_third", session);
+    }
+    else if (memory.otpRequests === 4) {
+      if (scamType === 'bank') return this.getUniqueReply("bank_otp_fourth", session);
+      return this.getUniqueReply("otp_fourth", session);
+    }
+    else {
+      return this.getUniqueReply("otp_fifth", session);
+    }
+  }
+
+  // ===============================
+  // Handle Extracted Information
+  // ===============================
+  static updateCountersAndExtract(detected, session) {
+    const memory = session.memory;
+    
+    // Store scammer's info
+    if (detected.extractedName && !memory.extractedInfo.scammerName) {
+      memory.extractedInfo.scammerName = detected.extractedName;
+      console.log(`📝 Got scammer's name: ${detected.extractedName}`);
+    }
+    
+    if (detected.phoneNumber && !memory.extractedInfo.scammerPhone) {
+      memory.extractedInfo.scammerPhone = detected.phoneNumber;
+      console.log(`📞 Got scammer's phone: ${detected.phoneNumber}`);
+    }
+    
+    if (detected.extractedEmail && !memory.extractedInfo.scammerEmail) {
+      memory.extractedInfo.scammerEmail = detected.extractedEmail;
+      console.log(`📧 Got scammer's email: ${detected.extractedEmail}`);
+    }
+    
+    if (detected.hasEmployeeID && detected.employeeID && !memory.extractedInfo.scammerID) {
+      memory.extractedInfo.scammerID = detected.employeeID;
+      console.log(`🆔 Got scammer's employee ID: ${detected.employeeID}`);
+    }
+    
+    if (detected.hasBranchCode && detected.branchCode && !memory.extractedInfo.scammerBranch) {
+      memory.extractedInfo.scammerBranch = detected.branchCode;
+      console.log(`🏢 Got scammer's branch code: ${detected.branchCode}`);
+    }
+    
+    if (detected.hasIFSC && detected.ifscCode && !memory.extractedInfo.scammerIFSC) {
+      memory.extractedInfo.scammerIFSC = detected.ifscCode;
+      console.log(`🔢 Got scammer's IFSC: ${detected.ifscCode}`);
+    }
+    
+    if (detected.hasUPI && detected.upiId && !memory.extractedInfo.scammerUPI) {
+      memory.extractedInfo.scammerUPI = detected.upiId;
+      console.log(`💳 Got scammer's UPI: ${detected.upiId}`);
+    }
+    
+    if (detected.hasAccount && detected.accountNumber && !memory.extractedInfo.scammerAccount) {
+      memory.extractedInfo.scammerAccount = detected.accountNumber;
+      console.log(`💰 Got scammer's account: ${detected.accountNumber}`);
+    }
+    
+    // Update counters
+    if (detected.hasThreat) memory.threatCount++;
+    if (detected.hasOTP) memory.otpRequests++;
+  }
+
+  // ===============================
+  // Get Unique Reply - NEVER REPEATS
+  // ===============================
+  static getUniqueReply(key, session) {
+    const replies = REPLIES[key];
+    if (!replies || replies.length === 0) {
+      return this.getContextualFallback(session);
+    }
+    
+    // Filter out already used replies
+    const availableReplies = replies.filter(reply => !session.memory.usedReplies.has(reply));
+    
+    // If all replies are used, reset the usedReplies for this category
+    if (availableReplies.length === 0) {
+      // Remove this category's replies from usedReplies
+      replies.forEach(reply => session.memory.usedReplies.delete(reply));
+      // Now all replies are available again
+      const freshReply = replies[Math.floor(Math.random() * replies.length)];
+      session.memory.usedReplies.add(freshReply);
+      return freshReply;
+    }
+    
+    // Pick random from available
+    const randomIndex = Math.floor(Math.random() * availableReplies.length);
+    const selectedReply = availableReplies[randomIndex];
+    
+    // Mark as used
+    session.memory.usedReplies.add(selectedReply);
+    
+    return selectedReply;
+  }
+
+  // ===============================
+  // Helper Methods
   // ===============================
   static hasScamIndicators(detected) {
     return detected.hasOTP || detected.hasPIN || detected.hasAccount || 
            detected.hasUPI || detected.hasPhone || detected.hasThreat ||
            detected.hasUrgency || detected.hasLink || detected.hasBank ||
            detected.hasFakeOffer || detected.hasInvestment || detected.hasLottery ||
-           detected.hasVirus || detected.hasKYC || detected.hasRefund ||
-           detected.hasGiftCard || detected.hasJob || detected.hasLoan ||
-           detected.hasEmployeeID || detected.hasEmail;
+           detected.hasEmployeeID || detected.hasEmail || detected.hasKYC ||
+           detected.hasJob || detected.hasLoan;
   }
 
-  // ===============================
-  // Check if message is just a greeting
-  // ===============================
   static isGreetingOnly(detected, message) {
     if (!message) return false;
-    
     const lowerMsg = message.toLowerCase();
-    
-    const isGreeting = /^(hi|hello|hey|namaste|नमस्ते|kaise ho|kya haal|good morning|good evening|good afternoon|how are you|kaisa hai)/i.test(lowerMsg);
+    const isGreeting = /^(hi|hello|hey|namaste|नमस्ते|kaise ho|kya haal|good morning|good evening|good afternoon)/i.test(lowerMsg);
     const hasScamIndicators = this.hasScamIndicators(detected);
-    
     return isGreeting && !hasScamIndicators;
-  }
-
-  // ===============================
-  // PHASE 1: CONFUSION (Turn 1)
-  // ===============================
-  static getPhase1ConfusionResponse(session) {
-    if (!session.memory.phaseCompleted.phase1) {
-      session.memory.phaseCompleted.phase1 = true;
-      session.memory.lastTopics.unshift('confused');
-    }
-    return this.getReply("victim_confused", session);
-  }
-
-  static getPhase2CuriosityResponse(detected, session) {
-    if (!session.memory.phaseCompleted.phase2) {
-      session.memory.phaseCompleted.phase2 = true;
-      if (!session.memory.askedTransaction) {
-        session.memory.askedTransaction = true;
-        session.memory.lastTopics.unshift('transaction');
-        return this.getReply("victim_worried", session);
-      }
-    }
-    
-    if (detected.hasThreat && !session.memory.askedWhyBlock) {
-      session.memory.askedWhyBlock = true;
-      return "Aisa kyun ho raha hai? Mujhe samajh nahi aaya.";
-    }
-    
-    return this.getReply("victim_worried", session);
-  }
-
-  static getPhase3ExtractionResponse(detected, session) {
-    
-    // Email extraction
-    if (detected.hasEmail && detected.extractedEmail && !session.memory.extractedInfo.email) {
-      session.memory.extractedInfo.email = detected.extractedEmail;
-      session.memory.lastTopics.unshift('email');
-      return this.getReplyWithParam("email_provided", "{email}", detected.extractedEmail, session);
-    }
-    
-    if (detected.hasEmailRequest && !session.memory.askedEmail) {
-      session.memory.askedEmail = true;
-      return this.getReply("email_send_request", session);
-    }
-    
-    // Name extraction
-    if (!session.memory.askedName && !session.memory.extractedInfo.scammerName && detected.extractedName) {
-      session.memory.askedName = true;
-      session.memory.extractedInfo.scammerName = detected.extractedName;
-      session.memory.lastTopics.unshift('name');
-      return this.getReply("ask_scammer_name", session);
-    }
-    
-    // Phone extraction
-    if (!session.memory.askedPhone && !session.memory.extractedInfo.scammerPhone && detected.phoneNumber) {
-      session.memory.askedPhone = true;
-      session.memory.extractedInfo.scammerPhone = detected.phoneNumber;
-      session.memory.lastTopics.unshift('phone');
-      return this.getReplyWithParam("phone_scammer_curious", "{phone}", detected.phoneNumber, session);
-    }
-    
-    // Account extraction
-    if (detected.hasAccount && detected.accountNumber && !session.memory.extractedInfo.accountNumber) {
-      session.memory.extractedInfo.accountNumber = detected.accountNumber;
-      session.memory.lastTopics.unshift('account_shocked');
-      return this.getReplyWithParam("account_shocked", "{account}", detected.accountNumber, session);
-    }
-    
-    // UPI extraction
-    if (detected.hasUPI && detected.upiId && !session.memory.extractedInfo.upiId) {
-      session.memory.extractedInfo.upiId = detected.upiId;
-      session.memory.lastTopics.unshift('upi_confirm');
-      return this.getReplyWithParam("upi_confirm", "{upi}", detected.upiId, session);
-    }
-    
-    // Phone number context
-    if (detected.hasPhone && detected.phoneNumber) {
-      return this.handlePhoneNumber(detected.phoneNumber, session);
-    }
-    
-    // Investment/Lottery/Job/Loan/GiftCard
-    if (detected.hasFakeOffer || detected.hasLottery) {
-      return this.getReply("lottery_surprised", session);
-    }
-    if (detected.hasInvestment) {
-      return this.getReply("investment_curious", session);
-    }
-    if (detected.hasJob) {
-      return this.getReply("job_interested", session);
-    }
-    if (detected.hasLoan) {
-      return this.getReply("loan_interested", session);
-    }
-    if (detected.hasGiftCard) {
-      return this.getReply("giftcard_curious", session);
-    }
-    
-    if (!session.memory.phaseCompleted.phase3) {
-      session.memory.phaseCompleted.phase3 = true;
-      return this.getReply("victim_asking", session);
-    }
-    
-    return this.getReply("victim_asking", session);
-  }
-
-  static getPhase4AuthorityResponse(detected, session) {
-    
-    if (!session.memory.askedEmployeeID) {
-      session.memory.askedEmployeeID = true;
-      session.memory.lastTopics.unshift('employee_id');
-      return this.getReply("ask_employee_id", session);
-    }
-    
-    if (!session.memory.askedBranchCode) {
-      session.memory.askedBranchCode = true;
-      session.memory.lastTopics.unshift('branch_code');
-      return this.getReply("ask_branch_code", session);
-    }
-    
-    if (!session.memory.questionedOfficial) {
-      session.memory.questionedOfficial = true;
-      session.memory.lastTopics.unshift('official');
-      return this.getReply("ask_official_number", session);
-    }
-    
-    if (!session.memory.phaseCompleted.phase4) {
-      session.memory.phaseCompleted.phase4 = true;
-    }
-    
-    return this.getReply("authority_believe", session);
-  }
-
-  static getPhase5EscalationResponse(detected, session) {
-    
-    if (!session.memory.cyberMentioned) {
-      session.memory.cyberMentioned = true;
-      session.memory.lastTopics.unshift('cyber');
-      return this.getReply("cyber_threat", session);
-    }
-    
-    if (!session.memory.branchMentioned) {
-      session.memory.branchMentioned = true;
-      session.memory.lastTopics.unshift('branch');
-      return this.getReply("branch_visit", session);
-    }
-    
-    if (!session.memory.tollfreeMentioned) {
-      session.memory.tollfreeMentioned = true;
-      return this.getReply("tollfree_curious", session);
-    }
-    
-    if (!session.memory.phaseCompleted.phase5) {
-      session.memory.phaseCompleted.phase5 = true;
-    }
-    
-    return this.getReply("cyber_threat", session);
-  }
-
-  static getPhase6ExitResponse(session) {
-    const exitReplies = [
-      "Main branch ja raha hoon aur wahan complaint register karunga.",
-      "Main SBI ke official number 1800 425 3800 pe call kar raha hoon.",
-      "Main cyber cell mein complaint file kar dunga. Aapka number note kar liya.",
-      "Is conversation ko yahin end karte hain. Main official channel se verify karunga.",
-      "Thank you for the information. Main SBI customer care se confirm kar lunga."
-    ];
-    
-    const index = session.turnCount % exitReplies.length;
-    return exitReplies[index];
-  }
-
-  static handlePhoneNumber(phoneNumber, session) {
-    const lastMessage = session.lastScammerMessage?.toLowerCase() || '';
-    const currentMessage = session.conversationHistory[session.conversationHistory.length - 1]?.text?.toLowerCase() || '';
-    const fullContext = lastMessage + ' ' + currentMessage;
-
-    const isVictimPhone = fullContext.includes('aapke') || fullContext.includes('aapka') ||
-                          fullContext.includes('your') || 
-                          (fullContext.includes('otp') && fullContext.includes('number')) ||
-                          fullContext.includes('इस नंबर पे') || fullContext.includes('aaya hai');
-
-    const isScammerPhone = fullContext.includes('mera') || fullContext.includes('my') ||
-                           fullContext.includes('hamara') || fullContext.includes('call me') ||
-                           fullContext.includes('mujhe call') || fullContext.includes('इस नंबर से');
-
-    session.memory.phoneMentionCount = (session.memory.phoneMentionCount || 0) + 1;
-
-    if (isVictimPhone && !session.memory.askedVictimPhone) {
-      session.memory.askedVictimPhone = true;
-      session.memory.lastTopics.unshift('phone_victim');
-      return this.getReplyWithParam("phone_victim_confirm", "{phone}", phoneNumber, session);
-    }
-    else if (isScammerPhone && !session.memory.extractedInfo.scammerPhone) {
-      session.memory.extractedInfo.scammerPhone = phoneNumber;
-      session.memory.lastTopics.unshift('phone_scammer');
-      return this.getReplyWithParam("phone_scammer_curious", "{phone}", phoneNumber, session);
-    }
-    else if (session.memory.extractedInfo.scammerPhone && session.memory.phoneMentionCount > 1) {
-      return this.getReplyWithParam("phone_scammer_compare", "{phone}", phoneNumber, session);
-    }
-    else {
-      return this.getReplyWithParam("phone_ambiguous", "{phone}", phoneNumber, session);
-    }
-  }
-
-  static updateCountersAndExtract(detected, session) {
-    if (detected.hasThreat) {
-      session.memory.threatCount = (session.memory.threatCount || 0) + 1;
-    }
-    if (detected.hasOTP) {
-      session.memory.otpRequests = (session.memory.otpRequests || 0) + detected.otpRequestCount;
-    }
-  }
-
-  static determineCurrentPhase(session) {
-    if (session.memory.extractedInfo.accountNumber && 
-        session.memory.extractedInfo.scammerPhone && 
-        session.memory.otpRequests >= 3 &&
-        session.turnCount >= 8) {
-      session.memory.currentPhase = 6;
-      return;
-    }
-    
-    if ((session.memory.threatCount >= 3 && session.memory.otpRequests >= 2) ||
-        (session.memory.extractedInfo.accountNumber && session.memory.extractedInfo.scammerPhone) ||
-        session.turnCount >= 7) {
-      session.memory.currentPhase = Math.max(session.memory.currentPhase, 5);
-      return;
-    }
-    
-    if ((session.memory.extractedInfo.scammerName || session.memory.otpRequests >= 2) ||
-        session.turnCount >= 5) {
-      session.memory.currentPhase = Math.max(session.memory.currentPhase, 4);
-      return;
-    }
-    
-    if (session.turnCount >= 3) {
-      session.memory.currentPhase = Math.max(session.memory.currentPhase, 3);
-      return;
-    }
-    
-    if (session.turnCount >= 2) {
-      session.memory.currentPhase = Math.max(session.memory.currentPhase, 2);
-    }
-  }
-
-  static getReply(key, session) {
-    const replies = REPLIES[key];
-    if (!replies || replies.length === 0) return this.getContextualFallback(session);
-
-    const index = (session.turnCount + session.memory.otpRequests + session.memory.threatCount) % replies.length;
-    return replies[index];
-  }
-
-  static getReplyWithParam(key, placeholder, value, session) {
-    const reply = this.getReply(key, session);
-    return reply.replace(new RegExp(placeholder.replace('{', '\\{').replace('}', '\\}'), 'g'), value);
   }
 
   static getContextualFallback(session) {
     const fallbacks = [
       "Mujhe samajh nahi aaya. Aap hi batao kya karna hai?",
       "Main confuse hoon. Thoda explain karo.",
-      "Mera account safe hai na? Aap batao.",
-      "Kya exact problem hai? Main tension mein hoon.",
-      "Aap guide karo, main aapke bharose hoon."
+      "Kya karna hai? Batao na.",
+      "Main aapke bharose hoon. Jo kaho karunga.",
+      "Aap guide karo, main follow karunga."
     ];
-    const index = session.turnCount % fallbacks.length;
-    return fallbacks[index];
+    
+    // Filter out used fallbacks
+    const available = fallbacks.filter(f => !session.memory.usedReplies.has(f));
+    
+    if (available.length > 0) {
+      const reply = available[Math.floor(Math.random() * available.length)];
+      session.memory.usedReplies.add(reply);
+      return reply;
+    }
+    
+    // If all used, reset and use first
+    session.memory.usedReplies.clear();
+    return fallbacks[0];
   }
+  static delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 }
