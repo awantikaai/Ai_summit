@@ -1,4 +1,3 @@
-// service/keywordDetector.js
 import { PATTERNS } from "../utils/pattern.js";
 
 export default class KeywordDetector {
@@ -17,13 +16,6 @@ export default class KeywordDetector {
       hasSuspiciousEmail: false,
       hasEmailContext: false,
       
-      // Context-based flags
-      isIntroduction: false,
-      isSharingOwnInfo: false,
-      isAskingVictimInfo: false,
-      isProvidingCredentials: false,
-      
-      // Extracted data
       accountNumber: null, 
       upiId: null, 
       phoneNumber: null,
@@ -34,45 +26,6 @@ export default class KeywordDetector {
       otpRequestCount: 0, 
       threatCount: 0
     };
-    
-    // ============ DETECT IF SCAMMER IS INTRODUCING THEMSELVES ============
-    const introPatterns = [
-      /(?:main|मैं|mein|this is|yeh|यह).{0,15}(?:bol raha|calling|बोल रहा)/i,
-      /(?:mera naam|my name|मेरा नाम).{0,15}(?:hai|है)/i,
-      /(?:aap se|आप से).{0,15}(?:baat|बात).{0,15}(?:kar raha|कर रहा)/i
-    ];
-    
-    detected.isIntroduction = introPatterns.some(p => p.test(text));
-    
-    // ============ DETECT IF SCAMMER IS SHARING THEIR OWN INFO ============
-    const sharingPatterns = [
-      /(?:mera|my|मेरा).{0,10}(?:number|phone|फोन)/i,
-      /(?:mera|my|मेरा).{0,10}(?:email|ईमेल)/i,
-      /(?:mera|my|मेरा).{0,10}(?:employee|कर्मचारी)/i,
-      /(?:mera|my|मेरा).{0,10}(?:id|आईडी)/i
-    ];
-    
-    detected.isSharingOwnInfo = sharingPatterns.some(p => p.test(text));
-    
-    // ============ DETECT IF SCAMMER IS ASKING FOR VICTIM'S INFO ============
-    const askingPatterns = [
-      /(?:aapka|your|आपका).{0,10}(?:name|naam|नाम)/i,
-      /(?:aapka|your|आपका).{0,10}(?:number|phone|फोन)/i,
-      /(?:aapka|your|आपका).{0,10}(?:account|खाता)/i,
-      /(?:aapka|your|आपका).{0,10}(?:upi)/i,
-      /(?:aapka|your|आपका).{0,10}(?:otp)/i
-    ];
-    
-    detected.isAskingVictimInfo = askingPatterns.some(p => p.test(text));
-    
-    // ============ DETECT IF SCAMMER IS PROVIDING CREDENTIALS ============
-    const credentialPatterns = [
-      /(?:yeh|यह).{0,10}(?:mera|my|मेरा).{0,10}(?:id|आईडी)/i,
-      /(?:employee|कर्मचारी).{0,10}(?:id|आईडी).{0,10}(?:hai|है)/i,
-      /(?:branch|शाखा).{0,10}(?:code|कोड).{0,10}(?:hai|है)/i
-    ];
-    
-    detected.isProvidingCredentials = credentialPatterns.some(p => p.test(text));
     
     // ============ OTP DETECTION ============
     if (PATTERNS.otp.test(text) || PATTERNS.otp_hindi.test(text)) {
@@ -107,11 +60,6 @@ export default class KeywordDetector {
       let phone = phoneMatch[0];
       phone = phone.replace('+91', '').replace(/\s/g, '');
       detected.phoneNumber = phone;
-      
-      // If scammer is sharing their own phone
-      if (detected.isSharingOwnInfo) {
-        console.log(`📞 Scammer shared their phone: ${phone}`);
-      }
     }
     
     // ============ EMAIL DETECTION ============
@@ -128,11 +76,6 @@ export default class KeywordDetector {
            text.toLowerCase().includes('official') || text.toLowerCase().includes('verify'))) {
         detected.hasSuspiciousEmail = true;
       }
-      
-      // If scammer is sharing their own email
-      if (detected.isSharingOwnInfo) {
-        console.log(`📧 Scammer shared their email: ${emailMatch[0]}`);
-      }
     }
     
     // ============ EMAIL REQUEST DETECTION ============
@@ -147,18 +90,9 @@ export default class KeywordDetector {
     detected.hasEmailContext = /(?:email|mail|ईमेल)/i.test(text);
     
     // ============ NAME EXTRACTION ============
-    // When scammer introduces themselves
-    const introNameMatch = text.match(/(?:main|मैं|mein|this is|yeh|यह)\s+([A-Za-z\s]+?)(?:\s+bol|\s+calling|\s+हूँ|\s+है|\.|,|$)/i);
-    if (introNameMatch && introNameMatch[1]) {
-      detected.extractedName = introNameMatch[1].trim();
-      console.log(`👤 Scammer introduced as: ${introNameMatch[1].trim()}`);
-    }
-    
-    // Direct name mention
-    const nameMatch = text.match(/(?:mera naam|my name is|मेरा नाम)\s+([A-Za-z\s]+?)(?:\s+hai|\s+हूँ|\.|,|$)/i);
+    const nameMatch = text.match(/(?:mera naam|my name is|main|मेरा नाम)\s+([A-Za-z\s]+?)(?:\s+hai|\s+हूँ|\.|,|$)/i);
     if (nameMatch && nameMatch[1]) {
       detected.extractedName = nameMatch[1].trim();
-      console.log(`👤 Scammer said name: ${nameMatch[1].trim()}`);
     }
     
     // ============ PATTERN-BASED DETECTIONS ============
@@ -219,13 +153,10 @@ export default class KeywordDetector {
     if (detected.hasDesignation) score += 15;
     if (detected.hasBranchCode) score += 15;
     
-    // Email scoring
+    // ============ NEW EMAIL SCORING ============
     if (detected.hasEmail) score += 10;
     if (detected.hasSuspiciousEmail) score += 20;
     if (detected.hasEmailPasswordRequest) score += 25;
-    
-    // Context bonuses
-    if (detected.isProvidingCredentials) score += 15; // Scammer sharing their credentials
     
     // Combination bonuses
     if (detected.hasOTP && detected.hasUPI) score += 20;

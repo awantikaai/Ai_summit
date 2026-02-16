@@ -1,4 +1,3 @@
-// service/callbackservice.js
 import { CONFIG } from "../utils/config.js";
 import axios from "axios";
 
