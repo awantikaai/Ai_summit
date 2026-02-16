@@ -4,7 +4,6 @@ import { IntelligenceExtractor } from '../utils/intelligenceextract.js';
 import  KeywordDetector from '../service/keywordDetector.js';
 import { PerplexityService } from '../service/perplexity.js';
 import { CallbackService } from '../service/callbackservice.js';
-
 const sessions = new Map();
 
 export const honey_pot = async (req, res) => {
@@ -15,14 +14,12 @@ export const honey_pot = async (req, res) => {
     if (!req.body.message || !req.body.message.text) {
       return res.status(400).json({ status: 'error', error: 'Invalid message format' });
     }
-    
     const { sessionId, message, conversationHistory = [], metadata = {} } = req.body;
     
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, {
         id: sessionId,
         scamDetected: false,
-        startTime: Date.now(),
         conversationHistory: [],
         intelligence: IntelligenceExtractor.createEmptyStore(),
         accountQuestioned: false,
@@ -42,8 +39,7 @@ export const honey_pot = async (req, res) => {
         lastScammerMessage: '',
         repetitionCount: 0,
         emotionLevel: 0,
-        pressureScore: 0,
-        memory: null  // Will be initialized by ReplyGenerator
+        pressureScore: 0
       });
     }
     
@@ -55,7 +51,6 @@ export const honey_pot = async (req, res) => {
       timestamp: message.timestamp || Date.now()
     });
     
-    // Simple repetition detection
     if (session.lastScammerMessage === message.text) {
       session.repetitionCount++;
     } else {
@@ -63,26 +58,22 @@ export const honey_pot = async (req, res) => {
     }
     session.lastScammerMessage = message.text;
     
-    // Detect keywords
     const detected = KeywordDetector.detectKeywords(message.text);
     const hasKeywords = KeywordDetector.hasAnyKeyword(detected);
     const riskScore = KeywordDetector.calculateRiskScore(detected);
     
-    // Extract intelligence
     IntelligenceExtractor.extractFromText(message.text, session.intelligence);
     
-    // Update pressure score
-    session.pressureScore = 
-      (session.otpRequests >= 3 ? 1 : 0) +
-      (session.threatCount >= 2 ? 1 : 0) +
-      (detected.hasPermanent ? 1 : 0) +
-      (detected.hasFine ? 1 : 0) +
-      (detected.hasCyber ? 1 : 0) +
-      (session.repetitionCount >= 2 ? 1 : 0) +
-      (detected.hasEmployeeID ? 1 : 0) +
-      (detected.hasDesignation ? 1 : 0);
+   session.pressureScore = 
+  (session.otpRequests >= 3 ? 1 : 0) +
+  (session.threatCount >= 2 ? 1 : 0) +
+  (detected.hasPermanent ? 1 : 0) +
+  (detected.hasFine ? 1 : 0) +
+  (detected.hasCyber ? 1 : 0) +
+  (session.repetitionCount >= 2 ? 1 : 0) +
+  (detected.hasEmployeeID ? 1 : 0) +
+  (detected.hasDesignation ? 1 : 0);
     
-    // Update emotion level
     if (session.lockToExit) {
       session.emotionLevel = 5;
     } else if (session.pressureScore >= 4 || session.otpRequests >= 5 || session.threatCount >= 4) {
@@ -97,13 +88,11 @@ export const honey_pot = async (req, res) => {
       session.emotionLevel = 0;
     }
     
-    // Update scam detection
     if (!session.scamDetected && riskScore >= CONFIG.SCAM_THRESHOLD) {
       session.scamDetected = true;
       console.log(`🚨 SCAM DETECTED - Session: ${sessionId}, Risk: ${riskScore}`);
     }
     
-    // Generate reply
     let reply;
     const turnCount = session.conversationHistory.filter(m => m.sender === 'user').length + 1;
     const isEarlyTurn = turnCount <= CONFIG.PERPLEXITY_TRIGGER_TURNS_MAX;
@@ -112,17 +101,15 @@ export const honey_pot = async (req, res) => {
       try {
         const category = await PerplexityService.selectCategory(message.text, session.conversationHistory, CONFIG);
         reply = PerplexityService.getReply(category, session);
-        console.log(`🤖 Perplexity used - Category: ${category}`);
       } catch (e) {
         reply = null;
       }
     }
     
     if (!reply) {
-     reply = await ReplyGenerator.generateReply(detected, session, message.text, session.conversationHistory);
+      reply = ReplyGenerator.generateReply(detected, session);
     }
     
-    // Add reply to history
     session.conversationHistory.push({
       sender: 'user',
       text: reply,
@@ -131,15 +118,13 @@ export const honey_pot = async (req, res) => {
     
     session.turnCount++;
     
-    // Check if session should end
-    if (CallbackService.shouldEndSession(session)) {
+    if (CallbackService.shouldEndSession(session, CONFIG)) {
       console.log(`\n🏁 Session ${sessionId} ending - Sending callback...`);
-      await CallbackService.sendFinalResult(sessionId, session);
+      await CallbackService.sendFinalResult(sessionId, session, CONFIG);
       sessions.delete(sessionId);
     }
     
     return res.json({ status: 'success', reply: reply });
-    
   } catch (error) {
     console.error('❌ Controller error:', error);
     return res.json({
@@ -148,13 +133,13 @@ export const honey_pot = async (req, res) => {
     });
   }
 };
+
 setInterval(() => {
   const now = Date.now();
   for (const [sessionId, session] of sessions.entries()) {
     const lastMessage = session.conversationHistory[session.conversationHistory.length - 1];
     if (lastMessage && (now - lastMessage.timestamp) > 3600000) {
       sessions.delete(sessionId);
-      console.log(`🧹 Cleaned up stale session: ${sessionId}`);
     }
   }
 }, 300000);
