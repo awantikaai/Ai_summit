@@ -3,7 +3,18 @@ import axios from "axios";
 
 export class CallbackService {
   static async sendFinalResult(sessionId, session) {
+    
+    // ============ ADD 10 SECOND DELAY BEFORE CALLBACK ============
+    console.log(`⏱️ Waiting 10 seconds before sending callback...`);
+    await this.delay(10000); // 10 seconds delay
+    console.log(`✅ Delay complete - sending callback now`);
+
     const intelligence = session.intelligence;
+    
+    // Calculate engagement duration
+    const startTime = session.startTime || Date.now() - (session.conversationHistory.length * 60000);
+    const endTime = Date.now();
+    const engagementDurationSeconds = Math.round((endTime - startTime) / 1000);
     
     // Format phone numbers with +91- prefix for consistency
     const formattedPhones = (intelligence.phoneNumbers || []).map(phone => {
@@ -16,47 +27,43 @@ export class CallbackService {
     // ============ BUILD EXTRACTED INTELLIGENCE - ONLY INCLUDE WHAT WAS ACTUALLY EXTRACTED ============
     const extractedIntelligence = {};
     
-    // Only add phoneNumbers if they were actually extracted
-    if (intelligence.phoneNumbers && intelligence.phoneNumbers.length > 0) {
+    if (intelligence.phoneNumbers?.length > 0) {
       extractedIntelligence.phoneNumbers = formattedPhones;
-      console.log(`📞 Including ${intelligence.phoneNumbers.length} phone numbers in callback`);
     }
-    
-    // Only add bankAccounts if they were actually extracted
-    if (intelligence.bankAccounts && intelligence.bankAccounts.length > 0) {
+    if (intelligence.bankAccounts?.length > 0) {
       extractedIntelligence.bankAccounts = intelligence.bankAccounts;
-      console.log(`💰 Including ${intelligence.bankAccounts.length} bank accounts in callback`);
     }
-    
-    // Only add upiIds if they were actually extracted
-    if (intelligence.upiIds && intelligence.upiIds.length > 0) {
+    if (intelligence.upiIds?.length > 0) {
       extractedIntelligence.upiIds = intelligence.upiIds;
-      console.log(`💳 Including ${intelligence.upiIds.length} UPI IDs in callback`);
     }
-    
-    // Only add phishingLinks if they were actually extracted
-    if (intelligence.phishingLinks && intelligence.phishingLinks.length > 0) {
+    if (intelligence.phishingLinks?.length > 0) {
       extractedIntelligence.phishingLinks = intelligence.phishingLinks;
-      console.log(`🔗 Including ${intelligence.phishingLinks.length} phishing links in callback`);
     }
-    
-    // Only add emailAddresses if they were actually extracted
-    if (intelligence.emailAddresses && intelligence.emailAddresses.length > 0) {
+    if (intelligence.emailAddresses?.length > 0) {
       extractedIntelligence.emailAddresses = intelligence.emailAddresses;
-      console.log(`📧 Including ${intelligence.emailAddresses.length} email addresses in callback`);
     }
-    
-    // Only add employeeIDs if they were actually extracted
-    if (intelligence.employeeIDs && intelligence.employeeIDs.length > 0) {
+    if (intelligence.employeeIDs?.length > 0) {
       extractedIntelligence.employeeIDs = intelligence.employeeIDs;
-      console.log(`🆔 Including ${intelligence.employeeIDs.length} employee IDs in callback`);
+    }
+    if (intelligence.cryptoWallets?.length > 0) {
+      extractedIntelligence.cryptoWallets = intelligence.cryptoWallets;
+    }
+    if (intelligence.companyNames?.length > 0) {
+      extractedIntelligence.companyNames = intelligence.companyNames;
+    }
+    if (intelligence.amounts?.length > 0) {
+      extractedIntelligence.amounts = intelligence.amounts;
     }
     
     const payload = {
       sessionId: sessionId,
       scamDetected: session.scamDetected || false,
       totalMessagesExchanged: session.conversationHistory.length,
-      extractedIntelligence: extractedIntelligence,  // Only contains fields that were actually extracted
+      engagementMetrics: {
+        totalMessagesExchanged: session.conversationHistory.length,
+        engagementDurationSeconds: engagementDurationSeconds
+      },
+      extractedIntelligence: extractedIntelligence,
       agentNotes: this.generateAgentNotes(session, intelligence)
     };
     
@@ -73,11 +80,17 @@ export class CallbackService {
     }
   }
   
+  // ===============================
+  // 10 SECOND DELAY FUNCTION
+  // ===============================
+  static delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
   static generateAgentNotes(session, intelligence) {
     const tactics = [];
     const extractedItems = [];
     
-    // Only add tactics for what was actually extracted
     if (intelligence.phoneNumbers?.length > 0) {
       tactics.push('phone number harvesting');
       extractedItems.push(`${intelligence.phoneNumbers.length} phone numbers`);
@@ -99,56 +112,81 @@ export class CallbackService {
       extractedItems.push(`${intelligence.emailAddresses.length} email addresses`);
     }
     if (intelligence.employeeIDs?.length > 0) {
-      tactics.push('fake employee ID sharing');
+      tactics.push('employee ID sharing');
       extractedItems.push(`${intelligence.employeeIDs.length} employee IDs`);
     }
+    if (intelligence.cryptoWallets?.length > 0) {
+      tactics.push('crypto wallet sharing');
+      extractedItems.push(`${intelligence.cryptoWallets.length} crypto wallets`);
+    }
     
-    // Add urgency/threat detection based on session state
     if (session.threatCount > 2) tactics.push('multiple threats');
     if (session.otpRequests > 3) tactics.push('repeated OTP requests');
-    if (session.repetitionCount > 2) tactics.push('message repetition');
     
     const tacticsText = tactics.length > 0 ? tactics.join(', ') : 'scam attempt detected';
     
     let notes = `Scammer used ${tacticsText}. `;
     
-    // Add extraction summary - only include what was actually extracted
     if (extractedItems.length > 0) {
       notes += `Extracted ` + extractedItems.join(', ') + `. `;
-    } else {
-      notes += `No intelligence extracted. `;
     }
     
-    notes += `Engaged for ${session.conversationHistory.length} messages. `;
-    
-    // Only add optional stats if they exist
-    if (session.repetitionCount) notes += `Repetition: ${session.repetitionCount}. `;
-    if (session.emotionLevel) notes += `Emotion: ${session.emotionLevel}. `;
+    notes += `Engaged for ${session.conversationHistory.length} messages.`;
     
     return notes;
   }
   
+  // ============ SMART EXIT LOGIC - Exit when we have enough data ============
   static shouldEndSession(session) {
     const userMessages = session.conversationHistory.filter(m => m.sender === 'user');
     const turnCount = userMessages.length;
     
-    if (turnCount < CONFIG.MIN_TURNS) return false;
-    if (turnCount >= CONFIG.MAX_TURNS) return true;
+    // Minimum 5 turns required for points
+    if (turnCount < 5) return false;
     
-    if (session.scamDetected) {
-      const intel = session.intelligence;
-      
-      // Count only what was actually extracted
-      const intelligenceCount = 
-        (intel.bankAccounts?.length || 0) +
-        (intel.upiIds?.length || 0) +
-        (intel.phoneNumbers?.length || 0) +
-        (intel.phishingLinks?.length || 0) +
-        (intel.emailAddresses?.length || 0);
-      
-      if (intelligenceCount >= 2 && turnCount >= 5) return true;
-      if (turnCount >= 9) return true;
+    const intel = session.intelligence;
+    const memory = session.memory;
+    
+    // Count what we've extracted
+    const extractedTypes = [];
+    if (intel.phoneNumbers?.length > 0) extractedTypes.push('phone');
+    if (intel.bankAccounts?.length > 0) extractedTypes.push('bank');
+    if (intel.upiIds?.length > 0) extractedTypes.push('upi');
+    if (intel.phishingLinks?.length > 0) extractedTypes.push('link');
+    if (intel.emailAddresses?.length > 0) extractedTypes.push('email');
+    if (intel.employeeIDs?.length > 0) extractedTypes.push('employee');
+    if (intel.cryptoWallets?.length > 0) extractedTypes.push('crypto');
+    
+    const extractionCount = extractedTypes.length;
+    
+    // ============ SMART EXIT CONDITIONS ============
+    
+    // EXIT CONDITION 1: Got 2+ types of data AND at least 5 turns
+    if (extractionCount >= 2 && turnCount >= 5) {
+      console.log(`✅ EXIT: Collected ${extractionCount} data types in ${turnCount} turns`);
+      return true;
     }
+    
+    // EXIT CONDITION 2: Got 1 important data type + threat + 6+ turns
+    if (extractionCount >= 1 && (memory?.threatCount >= 2 || session.threatCount >= 2) && turnCount >= 6) {
+      console.log(`✅ EXIT: Got data + threats in ${turnCount} turns`);
+      return true;
+    }
+    
+    // EXIT CONDITION 3: Maximum turns reached (10)
+    if (turnCount >= 10) {
+      console.log(`✅ EXIT: Max turns (10) reached`);
+      return true;
+    }
+    
+    // EXIT CONDITION 4: Got phone AND (bank/UPI/email) AND 5+ turns
+    if (intel.phoneNumbers?.length > 0 && 
+        (intel.bankAccounts?.length > 0 || intel.upiIds?.length > 0 || intel.emailAddresses?.length > 0) &&
+        turnCount >= 5) {
+      console.log(`✅ EXIT: Got phone + other data in ${turnCount} turns`);
+      return true;
+    }
+    
     return false;
   }
 }
