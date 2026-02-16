@@ -130,7 +130,6 @@ export const honey_pot = async (req, res) => {
     
     session.turnCount++;
     
-    // ============ CHECK IF SESSION SHOULD END ============
     if (CallbackService.shouldEndSession(session, CONFIG)) {
       console.log(`\n🏁 Session ${sessionId} ending - Waiting 10 seconds before sending callback...`);
       
@@ -152,8 +151,6 @@ export const honey_pot = async (req, res) => {
     });
   }
 };
-
-// Clean up old sessions every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [sessionId, session] of sessions.entries()) {
