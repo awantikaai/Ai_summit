@@ -3,9 +3,10 @@ import { REPLIES } from "./replies.js";
 
 export class ReplyGenerator {
 
-  static generateReply(detected, session) {
+  static async generateReply(detected, session) {
+    
 
-
+    await this.delay(10000)
     if (detected.hasThreat) {
       session.threatCount = (session.threatCount || 0) + 1;
     }
@@ -169,4 +170,9 @@ export class ReplyGenerator {
     const reply = this.getReply(key, session);
     return reply.replace(placeholder, value);
   }
+    
+  static delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
 }
